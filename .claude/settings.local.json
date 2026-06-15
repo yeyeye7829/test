@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($content = [System.IO.File]::ReadAllText\\(\"c:\\\\Users\\\\yeyeye\\\\Desktop\\\\test\\\\页面一\\\\起始页.html\", [System.Text.Encoding]::UTF8\\); $content = $content -replace 'const WHITE_STRIP_Y = 915', 'const WHITE_STRIP_Y = 615'; [System.IO.File]::WriteAllText\\(\"c:\\\\Users\\\\yeyeye\\\\Desktop\\\\test\\\\页面一\\\\起始页.html\", $content, [System.Text.Encoding]::UTF8\\))"
+    ]
+  }
+}
