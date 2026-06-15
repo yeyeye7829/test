@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometric Design</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tilt+Warp&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background-color: #000; }
+        #viewport-wrapper { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        #page-canvas { width: 1920px; height: 1080px; position: relative; flex-shrink: 0; transform-origin: center center; transition: transform 0.1s ease-out; background: #FBF6F2; }
+
+        .page-title {
+            position: absolute;
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: 128px;
+            font-weight: 400;
+            color: #000;
+            top: 839px;
+            left: 137px;
+            z-index: 1000;
+            line-height: 1;
+        }
+        .page-title span { display: inline-block; margin-right: 0.25em; cursor: default; }
+        .slash-wrapper { position: absolute; left: 508px; top: 856.69px; z-index: 2000; pointer-events: auto !important; }
+        .slash-wrapper svg { pointer-events: auto !important; display: block; }
+
+        /* 物理组容器 - shape黑盒 */
+        .phys-group { position: absolute; cursor: pointer; }
+        .shape-svg { position: absolute; top: 0; left: 0; display: block; }
+
+        /* 线条画布 - 独立svg层 */
+        .stem-svg { position: absolute; pointer-events: none; overflow: visible; }
+
+        /* 悬浮放大效果 */
+        .hover-scale {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .hover-scale:hover,
+        .hover-scale.hovered {
+            transform: scale(1.05);
+        }
+
+        /* 音符文字 */
+        .note-text {
+            position: absolute;
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: 32px;
+            font-weight: 400;
+            z-index: 3000;
+        }
+        .note-text:hover {
+            transform: scale(1.3);
+        }
+
+        /* 返回按钮悬浮放大效果 */
+        .phys-group img[src*="返回"] {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            transform-origin: center center;
+        }
+        .phys-group img[src*="返回"]:hover {
+            transform: scale(1.1);
+        }
+
+        /* 鼓悬浮往左旋转15度并放大 */
+        .drum .hover-scale {
+            transform-origin: center center;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .drum .hover-scale:hover {
+            transform: scale(1.15) rotate(-15deg);
+        }
+
+        /* tap flower 闪烁动画 */
+        .tap-flower {
+            animation: tapFlowerBlink 1.5s ease-in-out infinite;
+        }
+        @keyframes tapFlowerBlink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.95); }
+        }
+        .tap-flower.stopped {
+            animation: none;
+            opacity: 1;
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body>
+    <audio id="bgm" src="../../音乐/二级页面1背景乐.mp3" loop volume="0.2"></audio>
+    <audio id="sfx-woodblock" src="../../音乐/木鱼.mp3" volume="0.1"></audio>
+    <audio id="sfx-la" src="../../音乐/la.mp3" volume="0.3"></audio>
+    <audio id="sfx-rnb" src="../../音乐/rnb.mp3" volume="0.3"></audio>
+    <div id="viewport-wrapper">
+        <div id="page-canvas">
+            <!-- 白顶 -->
+            <div class="phys-group" style="left:0px;top:0px;">
+                <img src="asset/白顶.svg" class="shape-svg" width="1920" height="40" alt="">
+            </div>
+
+            <!-- 底部 -->
+            <div class="phys-group" style="left:0px;top:1040px;">
+                <img src="asset/底部.svg" class="shape-svg" width="1920" height="40" alt="">
+            </div>
+
+            <!-- tap flower -->
+            <div class="phys-group tap-flower" style="left:140px;top:106px;">
+                <img src="asset/Tap flower parts to explore personal dimensions & musical genes.svg" class="shape-svg" width="604" height="165" alt="">
+            </div>
+
+            <!-- genre线 -->
+            <div class="phys-group genre-line" style="left:702px;top:772.5px;opacity:0;width:142px;height:163px;overflow:hidden;">
+                <img src="asset/genre线.svg" class="shape-svg" width="142" height="163" alt="" style="position:absolute;left:0;top:0;">
+                <div class="genre-mask" style="position:absolute;left:0;top:0;width:100%;height:100%;background:#FBF6F2;"></div>
+            </div>
+
+            <!-- energy线 -->
+            <div class="phys-group energy-line" style="left:582.6px;top:520px;opacity:0;width:201px;height:9px;overflow:hidden;">
+                <img src="asset/energy线.svg" class="shape-svg" width="201" height="9" alt="" style="position:absolute;left:0;top:0;">
+                <div class="energy-mask" style="position:absolute;right:0;top:0;width:100%;height:100%;background:#FBF6F2;"></div>
+            </div>
+
+            <!-- status线 -->
+            <div class="phys-group status-line" style="left:1134px;top:197.3px;opacity:0;width:58px;height:141px;overflow:hidden;">
+                <img src="asset/status线.svg" class="shape-svg" width="58" height="141" alt="" style="position:absolute;left:0;top:0;">
+                <div class="status-mask" style="position:absolute;right:0;top:0;width:100%;height:100%;background:#FBF6F2;"></div>
+            </div>
+
+            <!-- creative线 -->
+            <div class="phys-group creative-line" style="left:971.76px;top:467.5px;opacity:0;width:309px;height:239px;overflow:hidden;">
+                <img src="asset/creative 线.svg" class="shape-svg" width="309" height="239" alt="" style="position:absolute;left:0;top:0;">
+                <div class="creative-mask" style="position:absolute;right:0;top:0;width:100%;height:100%;background:#FBF6F2;"></div>
+            </div>
+
+            <!-- mood线 -->
+            <div class="phys-group mood-line" style="left:1216.8px;top:730px;opacity:0;width:90px;height:76px;overflow:hidden;">
+                <img src="asset/mood 线.svg" class="shape-svg" width="90" height="76" alt="" style="position:absolute;left:0;top:0;">
+                <div class="mood-mask" style="position:absolute;right:0;top:0;width:100%;height:100%;background:#FBF6F2;"></div>
+            </div>
+
+            <!-- 返回 -->
+            <div class="phys-group" style="left:1569px;top:930px;">
+                <img src="asset/返回.svg" class="shape-svg" width="212" height="73" alt="">
+            </div>
+
+            <!-- mood energy -->
+            <div class="phys-group mood-energy" style="left:152.75px;top:424px;opacity:0;">
+                <img src="asset/mood energy.svg" class="shape-svg" width="411" height="205" alt="">
+            </div>
+
+            <!-- music genres -->
+            <div class="phys-group music-genres" style="left:293.8px;top:701.4px;opacity:0;">
+                <img src="asset/music genres.svg" class="shape-svg" width="399" height="205" alt="">
+            </div>
+
+            <!-- social status -->
+            <div class="phys-group social-status" style="left:1207.5px;top:69px;opacity:0;">
+                <img src="asset/social status.svg" class="shape-svg" width="490" height="218" alt="">
+            </div>
+
+            <!-- creative input -->
+            <div class="phys-group creative-input" style="left:1288px;top:373.5px;opacity:0;">
+                <img src="asset/creative input.svg" class="shape-svg" width="490" height="218" alt="">
+            </div>
+
+            <!-- mood genre -->
+            <div class="phys-group mood-genre" style="left:1320px;top:637px;opacity:0;">
+                <img src="asset/mood genre.svg" class="shape-svg" width="461" height="205" alt="">
+            </div>
+
+            <!-- 鼓 -->
+            <div class="phys-group drum" style="left:320px;top:794.5px;opacity:0;pointer-events:none;">
+                <img src="asset/鼓.svg" class="shape-svg hover-scale" width="71" height="101" alt="">
+            </div>
+
+            <!-- 三色堇 茎根 -->
+            <div class="phys-group flower-stem" style="left:820px;top:338px;">
+                <svg class="shape-svg hover-scale" width="280" height="482" viewBox="0 0 280 482" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none;">
+                    <path d="M144.797 426.11V177.75C144.797 69.9089 2.95016 66.8274 2.95016 177.75" stroke="#036F62" stroke-width="5.90096" style="pointer-events:all;"/>
+                    <path d="M134.294 2.35296L134.293 229.587C134.293 337.428 276.14 340.509 276.14 229.587" stroke="#036F62" stroke-width="5.90096" style="pointer-events:all;"/>
+                    <path d="M133.577 421.741V172.08C133.577 90.7246 20.0594 75.782 12.7336 172.078" stroke="#6CBDAA" stroke-width="5.90096" style="pointer-events:all;"/>
+                    <path d="M145.512 0.000201775V235.257C145.512 316.612 259.029 331.554 266.355 235.258" stroke="#6CBDAA" stroke-width="5.90096" style="pointer-events:all;"/>
+                    <path d="M134.293 32.458V481.419" stroke="#6CBDAA" stroke-width="5.90096" style="pointer-events:all;"/>
+                    <path d="M144.603 38.4668L144.603 480.981" stroke="#036F62" stroke-width="5.90096" style="pointer-events:all;"/>
+                    <path d="M139.192 114.819V312.825" stroke="#FBF6F2" stroke-width="4.42572" style="pointer-events:all;"/>
+                </svg>
+            </div>
+
+            <!-- 三色堇 花 -->
+            <div class="phys-group flower-head" style="left:659.3px;top:147.6px;">
+                <svg class="shape-svg hover-scale" width="580" height="653" viewBox="0 0 580 653" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none;">
+                    <path d="M224.21 169.658C214.422 181.993 216.486 199.927 228.821 209.716C241.156 219.504 259.09 217.44 268.879 205.105C259.625 197.762 258.88 197.169 246.545 187.381C234.21 177.593 234.108 177.512 224.21 169.658Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M289.189 36.9584C282.784 22.5727 265.931 16.1025 251.545 22.5068C237.159 28.9112 230.689 45.7646 237.093 60.1503C247.886 55.3458 248.756 54.9592 263.141 48.5549C277.527 42.1506 277.645 42.0973 289.189 36.9584Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M371.634 167.097C386.996 170.558 402.255 160.91 405.716 145.549C409.177 130.187 399.529 114.928 384.168 111.467C381.571 122.991 381.361 123.92 377.9 139.282C374.439 154.643 374.411 154.77 371.634 167.097Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M210.972 110.827C195.532 113.92 185.523 128.943 188.615 144.384C191.708 159.824 206.732 169.833 222.172 166.74C219.852 155.157 219.666 154.224 216.573 138.783C213.48 123.343 213.454 123.216 210.972 110.827Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M347.467 52.448C351.872 37.3297 343.186 21.5035 328.068 17.0994C312.949 12.6953 297.123 21.381 292.719 36.4994C304.061 39.8033 304.975 40.0702 320.093 44.4743C335.211 48.8784 335.336 48.9141 347.467 52.448Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M324.389 204.569C333.88 217.135 351.76 219.627 364.325 210.136C376.89 200.646 379.383 182.766 369.892 170.2C360.466 177.32 359.705 177.893 347.14 187.384C334.575 196.875 334.472 196.954 324.389 204.569Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M294.699 126.702L224.197 169.693L268.851 205.129L294.699 126.702Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M294.647 119.321L289.166 36.9273L237.087 60.1118L294.647 119.321Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M302.331 122.255L371.672 167.095L384.201 111.483L302.331 122.255Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M292.527 123.57L210.937 110.843L222.134 166.739L292.527 123.57Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M298.427 118.846L347.468 52.4097L292.737 36.4661L298.427 118.846Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M300.451 125.572L324.418 204.594L369.906 170.236L300.451 125.572Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M292.746 124.825L266.076 141.178L266.124 141.602L264.793 141.869C257.966 143.236 251.322 138.81 249.954 131.983C248.587 125.156 253.015 118.513 259.842 117.146L261.205 116.873L261.315 117.29L292.201 122.109L296.165 122.727L292.746 124.825Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M297.216 118.457L295.061 87.2472L294.662 87.0942L295.043 85.7906C296.99 79.106 303.989 75.2642 310.674 77.2116C317.358 79.1592 321.198 86.1584 319.251 92.8429L318.862 94.1781L318.441 94.0823L299.875 119.232L297.492 122.459L297.216 118.457Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M301.487 124.831L327.8 141.754L328.161 141.526L328.979 142.609C333.175 148.165 332.074 156.072 326.518 160.268C320.962 164.465 313.055 163.361 308.859 157.805L308.021 156.696L308.349 156.415L299.277 126.5L298.113 122.661L301.487 124.831Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M295.977 127.143L286.367 156.829L286.723 157.111L285.816 158.266C281.517 163.742 273.591 164.698 268.114 160.398C262.637 156.099 261.682 148.173 265.981 142.696L266.696 141.785L267.042 141.941L293.8 125.434L297.213 123.327L295.977 127.143Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M293.663 120.25L271.795 97.9921L271.38 98.1768L270.776 96.8391C267.911 90.4933 270.733 83.0248 277.078 80.1594C283.424 77.2942 290.893 80.1158 293.758 86.4615L294.235 87.5172L293.936 87.7517L296.186 119.111L296.474 123.111L293.663 120.25Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M302.174 120.911L333.088 116.677L333.188 116.234L334.622 116.549C341.422 118.044 345.724 124.769 344.23 131.57C342.736 138.37 336.01 142.672 329.21 141.178L328.079 140.929L328.069 140.55L301.58 123.615L298.2 121.455L302.174 120.911Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M144.827 585.224C148.14 600.338 163.078 609.904 178.191 606.591C193.305 603.277 202.871 588.339 199.558 573.226C188.22 575.711 187.306 575.911 172.192 579.224C157.078 582.538 156.954 582.566 144.827 585.224Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M84.1372 453.337C69.2061 449.279 53.8129 458.094 49.7554 473.025C45.6979 487.956 54.5127 503.349 69.4437 507.407C72.4877 496.205 72.7336 495.303 76.791 480.372C80.8485 465.441 80.8814 465.317 84.1372 453.337Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M234.431 471.38C246.607 461.832 248.737 444.222 239.189 432.047C229.641 419.871 212.031 417.741 199.856 427.289C207.019 436.423 207.595 437.159 217.143 449.335C226.691 461.51 226.77 461.61 234.431 471.38Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M91.8084 558.77C84.5746 572.447 89.7981 589.399 103.475 596.633C117.153 603.867 134.105 598.643 141.339 584.966C131.078 579.539 130.251 579.101 116.574 571.867C102.896 564.634 102.783 564.574 91.8084 558.77Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M132.125 418.582C123.348 405.839 105.903 402.624 93.1608 411.401C80.4184 420.178 77.2035 437.622 85.9801 450.365C95.5395 443.781 96.3102 443.25 109.053 434.474C121.795 425.697 121.9 425.624 132.125 418.582Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M233.623 530.627C249.084 531.204 262.086 519.137 262.663 503.675C263.24 488.213 251.173 475.212 235.712 474.635C235.279 486.234 235.243 487.169 234.666 502.631C234.09 518.093 234.086 518.22 233.623 530.627Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M155.893 504.876L144.843 585.258L199.557 573.263L155.893 504.876Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M150.24 500.332L84.0985 453.336L69.4098 507.389L150.24 500.332Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M157.246 496.303L234.451 471.351L199.887 427.274L157.246 496.303Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M152.16 504.584L91.8002 558.806L141.314 584.993L152.16 504.584Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M152.227 497.157L132.096 418.557L85.9659 450.329L152.227 497.157Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M158.606 499.795L233.66 530.621L235.748 474.647L158.606 499.795Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M153.275 505.201L149.166 535.649L149.525 535.879L148.891 537.079C145.686 543.139 138.174 545.455 132.114 542.249C126.053 539.044 123.74 531.532 126.945 525.472L127.595 524.242L127.989 524.421L150.826 503.907L153.811 501.226L153.275 505.201Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M151.163 497.861L126.074 480.128L125.704 480.34L124.934 479.222C121.046 473.576 122.469 465.846 128.115 461.957C133.761 458.068 141.491 459.494 145.38 465.14L146.169 466.286L145.828 466.552L153.444 496.29L154.44 500.176L151.163 497.861Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M158.677 498.52L187.888 488.999L187.939 488.575L189.296 488.626C196.146 488.882 201.494 494.642 201.239 501.493C200.983 508.344 195.221 513.69 188.37 513.435L186.98 513.384L186.97 512.95L158.574 501.288L154.863 499.763L158.677 498.52Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M157.045 504.162L173.67 529.901L174.113 529.804L174.435 531.235C175.939 537.924 171.735 544.567 165.046 546.07C158.358 547.574 151.715 543.37 150.211 536.681L149.957 535.551L150.297 535.382L154.343 504.77L154.869 500.793L157.045 504.162Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M150.339 501.684L119.828 504.509L119.709 504.947L118.292 504.57C111.667 502.808 107.724 496.007 109.486 489.382C111.249 482.757 118.05 478.814 124.675 480.577L125.795 480.875L125.787 481.254L151.051 499.007L154.333 501.314L150.339 501.684Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M156.104 495.574L172.07 469.421L171.79 469.064L172.939 468.152C178.311 463.893 186.12 464.795 190.379 470.167C194.638 475.54 193.736 483.349 188.364 487.608L187.456 488.328L187.156 488.095L157.824 497.744L154.014 498.997L156.104 495.574Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M435.201 221.481C440.367 206.909 456.367 199.284 470.939 204.449C485.511 209.615 493.136 225.615 487.971 240.187C477.039 236.312 476.158 236 461.586 230.835C447.014 225.669 446.894 225.626 435.201 221.481Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M358.622 344.689C343.314 346.854 329.149 336.2 326.984 320.892C324.819 305.584 335.474 291.419 350.782 289.254C352.406 300.738 352.537 301.664 354.702 316.972C356.867 332.28 356.884 332.406 358.622 344.689Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M509.874 345.501C520.757 356.482 520.678 374.206 509.697 385.09C498.716 395.973 480.992 395.894 470.109 384.913C478.347 376.748 479.01 376.09 489.991 365.207C500.972 354.323 501.063 354.234 509.874 345.501Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M379.345 241.113C373.875 226.653 381.163 210.496 395.623 205.026C410.084 199.556 426.241 206.844 431.711 221.304C420.863 225.408 419.989 225.739 405.528 231.209C391.068 236.679 390.948 236.724 379.345 241.113Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M401.872 385.117C391.585 396.658 373.889 397.675 362.348 387.388C350.807 377.101 349.79 359.406 360.077 347.865C368.735 355.582 369.433 356.203 380.975 366.49C392.516 376.777 392.611 376.863 401.872 385.117Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M516.443 286.66C531.844 288.012 543.234 301.593 541.882 316.994C540.53 332.395 526.949 343.785 511.548 342.433C512.562 330.879 512.643 329.948 513.995 314.546C515.347 299.145 515.358 299.018 516.443 286.66Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M436.176 302.52L435.223 221.451L487.975 240.151L436.176 302.52Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M430.006 306.321L358.583 344.685L350.746 289.268L430.006 306.321Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M436.451 311.188L509.891 345.532L470.139 384.931L436.451 311.188Z" fill="#FE9973" style="pointer-events:all;"/>
+                    <path d="M432.437 302.344L379.34 241.076L431.689 221.273L432.437 302.344Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M431.58 309.716L401.842 385.139L360.06 347.898L431.58 309.716Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M438.233 307.896L516.48 286.672L511.586 342.427L438.233 307.896Z" fill="#F88256" style="pointer-events:all;"/>
+                    <path d="M433.622 301.871L433.338 271.174L433.723 270.99L433.243 269.721C430.819 263.313 423.659 260.082 417.251 262.506C410.843 264.93 407.614 272.091 410.038 278.499L410.53 279.799L410.943 279.671L431.032 302.851L433.659 305.882L433.622 301.871Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M430.612 308.885L403.532 323.343L403.191 323.087L402.288 324.1C397.729 329.214 398.179 337.057 403.293 341.615C408.408 346.174 416.25 345.722 420.808 340.608L421.733 339.569L421.429 339.263L432.679 310.727L434.151 306.996L430.612 308.885Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M438.146 309.168L465.92 322.243L465.918 322.669L467.27 322.788C474.095 323.387 480.115 318.34 480.714 311.516C481.313 304.691 476.264 298.673 469.44 298.074L468.055 297.952L467.991 298.379L438.387 306.41L434.516 307.46L438.146 309.168Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M437.23 303.372L456.915 279.922L457.342 280.074L457.84 278.693C460.163 272.248 456.821 265.14 450.377 262.816C443.932 260.493 436.822 263.835 434.499 270.28L434.106 271.37L434.423 271.579L434.624 302.432L434.651 306.443L437.23 303.372Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M430.273 304.992L400.376 298.394L400.313 297.945L398.858 298.143C392.07 299.066 387.315 305.318 388.238 312.106C389.162 318.895 395.415 323.651 402.203 322.727L403.35 322.571L403.39 322.193L430.647 307.736L434.19 305.856L430.273 304.992Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                    <path d="M435.226 311.768L447.801 339.683L447.479 340.002L448.507 341.05C453.303 345.941 461.158 346.018 466.049 341.222C470.94 336.425 471.017 328.569 466.221 323.678L465.409 322.851L465.083 323.045L437.204 309.829L433.579 308.111L435.226 311.768Z" fill="#6697DC" stroke="#FBF6F2" stroke-width="2.95048" style="pointer-events:all;"/>
+                </svg>
+            </div>
+
+            <!-- 三色堇 叶子 -->
+            <div class="phys-group flower-leaf" style="left:805.3px;top:332px;">
+                <svg class="shape-svg hover-scale" width="307" height="247" viewBox="0 0 307 247" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none;">
+                    <circle cx="9.96111" cy="9.96111" r="9.96111" transform="matrix(-0.0102822 0.999947 0.999947 0.0102822 131.616 0)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <circle cx="161.534" cy="10.2703" r="9.96111" transform="rotate(90.5891 161.534 10.2703)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <rect width="34.047" height="19.9188" transform="matrix(-0.0102822 0.999947 0.999947 0.0102822 131.527 9.09082)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <rect x="171.501" y="9.50244" width="34.047" height="19.9188" transform="rotate(90.5891 171.501 9.50244)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <path d="M150.966 62.644C151.08 51.5409 150.967 62.5411 151.08 51.5408C151.193 40.5406 151.069 52.5766 151.171 42.7263C140.17 42.6132 139.563 42.607 131.253 42.5215C131.14 53.5218 139.966 62.5309 150.966 62.644Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M150.964 62.6446C151.079 51.5414 150.965 62.5416 151.079 51.5414C151.192 40.5411 151.068 52.5771 151.169 42.7268C162.169 42.8399 162.777 42.8463 171.087 42.9316C170.974 53.9319 161.965 62.7577 150.964 62.6446Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M131.467 14.9448C131.353 26.048 131.466 15.0478 131.353 26.048C131.239 37.0483 131.363 25.0123 131.262 34.8626C142.262 34.9757 142.869 34.9819 151.18 35.0674C151.293 24.0671 142.467 15.0579 131.467 14.9448Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M171.442 15.3559C171.328 26.4591 171.441 15.4588 171.328 26.4591C171.215 37.4594 171.338 25.4234 171.237 35.2737C160.237 35.1605 159.63 35.1542 151.319 35.0688C151.432 24.0686 160.442 15.2428 171.442 15.3559Z" fill="#036F62" style="pointer-events:all;"/>
+                    <rect width="7.65891" height="19.9188" transform="matrix(-0.0102822 0.999947 0.999947 0.0102822 131.261 34.8618)" fill="#036F62" style="pointer-events:all;"/>
+                    <rect x="171.235" y="35.2744" width="7.65891" height="19.9188" transform="rotate(90.5891 171.235 35.2744)" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M151.389 42.2769L152.062 3.18677" stroke="#FBF6F2" stroke-width="4.42572" style="pointer-events:all;"/>
+                    <circle cx="9.7876" cy="9.7876" r="9.7876" transform="matrix(0.0102822 -0.999947 -0.999947 -0.0102822 39.2871 238.7)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <circle cx="9.88772" cy="228.609" r="9.7876" transform="rotate(-89.4109 9.88772 228.609)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <rect width="33.454" height="19.5719" transform="matrix(0.0102822 -0.999947 -0.999947 -0.0102822 39.374 229.768)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <rect x="0.0957031" y="229.364" width="33.454" height="19.5719" transform="rotate(-89.4109 0.0957031 229.364)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <path d="M20.275 177.148C20.1628 188.058 20.2739 177.249 20.1628 188.058C20.0516 198.867 20.1732 187.04 20.0737 196.719C30.8824 196.83 31.479 196.836 39.6445 196.92C39.7557 186.112 31.0836 177.259 20.275 177.148Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M20.274 177.148C20.1618 188.058 20.273 177.249 20.1618 188.058C20.0507 198.866 20.1723 187.04 20.0728 196.719C9.26411 196.608 8.66753 196.601 0.501953 196.518C0.613096 185.709 9.46535 177.037 20.274 177.148Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M39.4321 224.017C39.5443 213.107 39.4331 223.916 39.5443 213.107C39.6554 202.298 39.5338 214.125 39.6333 204.446C28.8247 204.335 28.2281 204.329 20.0625 204.245C19.9514 215.053 28.6234 223.906 39.4321 224.017Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M0.154699 223.612C0.266882 212.702 0.155739 223.511 0.266882 212.702C0.378025 201.893 0.256417 213.72 0.355941 204.041C11.1646 204.152 11.7612 204.158 19.9268 204.242C19.8156 215.051 10.9634 223.723 0.154699 223.612Z" fill="#036F62" style="pointer-events:all;"/>
+                    <rect width="7.52551" height="19.5719" transform="matrix(0.0102822 -0.999947 -0.999947 -0.0102822 39.6348 204.446)" fill="#036F62" style="pointer-events:all;"/>
+                    <rect x="0.356445" y="204.041" width="7.52551" height="19.5719" transform="rotate(-89.4109 0.356445 204.041)" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M19.8574 197.161L19.1961 235.57" stroke="#FBF6F2" stroke-width="4.42572" style="pointer-events:all;"/>
+                    <circle cx="9.77993" cy="9.77993" r="9.77993" transform="matrix(-0.0102822 0.999947 0.999947 0.0102822 266.829 184.629)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <circle cx="296.202" cy="194.712" r="9.77993" transform="rotate(90.5891 296.202 194.712)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <rect width="33.4277" height="19.5565" transform="matrix(-0.0102822 0.999947 0.999947 0.0102822 266.739 193.554)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <rect x="305.987" y="193.959" width="33.4277" height="19.5565" transform="rotate(90.5891 305.987 193.959)" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <path d="M285.826 246.133C285.938 235.232 285.827 246.032 285.938 235.232C286.049 224.432 285.928 236.249 286.027 226.578C275.227 226.466 274.631 226.46 266.472 226.376C266.361 237.177 275.026 246.022 285.826 246.133Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M285.825 246.133C285.938 235.232 285.827 246.032 285.938 235.232C286.049 224.432 285.927 236.249 286.027 226.578C296.827 226.689 297.423 226.695 305.582 226.779C305.471 237.579 296.626 246.244 285.825 246.133Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M266.683 199.302C266.571 210.203 266.682 199.403 266.571 210.203C266.46 221.003 266.581 209.186 266.482 218.857C277.282 218.968 277.878 218.974 286.037 219.058C286.148 208.258 277.483 199.413 266.683 199.302Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M305.929 199.706C305.817 210.607 305.928 199.807 305.817 210.607C305.706 221.407 305.828 209.59 305.728 219.261C294.928 219.15 294.332 219.144 286.173 219.06C286.284 208.26 295.129 199.595 305.929 199.706Z" fill="#036F62" style="pointer-events:all;"/>
+                    <rect width="7.51961" height="19.5565" transform="matrix(-0.0102822 0.999947 0.999947 0.0102822 266.479 218.856)" fill="#036F62" style="pointer-events:all;"/>
+                    <rect x="305.727" y="219.261" width="7.51961" height="19.5565" transform="rotate(90.5891 305.727 219.261)" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M286.241 226.136L286.902 187.757" stroke="#FBF6F2" stroke-width="4.42572" style="pointer-events:all;"/>
+                </svg>
+            </div>
+
+            <!-- 土 -->
+            <div class="phys-group hover-scale flower-soil" style="left:860px;top:817.3px;">
+                <img src="asset/土.svg" class="shape-svg" width="201" height="201" alt="">
+            </div>
+
+            <!-- 三色堇label -->
+            <div class="phys-group flower-label hover-scale" style="left:1030px;top:821px;">
+                <img src="asset/三色堇label.svg" class="shape-svg" width="242" height="57" alt="">
+            </div>
+
+            <!-- 音符文字 -->
+            <span class="note-text hover-scale" style="left:1337px;top:519px;color:#FE9973;opacity:0;">Do</span>
+            <span class="note-text hover-scale" style="left:1398px;top:519px;color:#FE9973;opacity:0;">Re</span>
+            <span class="note-text hover-scale" style="left:1456px;top:519px;color:#FE9973;opacity:0;">Me</span>
+            <span class="note-text hover-scale" style="left:1523px;top:519px;color:#FE9973;opacity:0;">Fa</span>
+            <span class="note-text hover-scale" style="left:1580px;top:519px;color:#FE9973;opacity:0;">Sol</span>
+            <span id="note-la" class="note-text hover-scale" style="left:1646px;top:519px;color:#6697DC;opacity:0;">La</span>
+            <span class="note-text hover-scale" style="left:1701px;top:519px;color:#FE9973;opacity:0;">Si</span>
+        </div>
+    </div>
+
+    <script>
+        function resizeCanvas() {
+            const canvas = document.getElementById('page-canvas');
+            if (!canvas) return;
+            const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+            canvas.style.transform = `scale(${scale})`;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('DOMContentLoaded', resizeCanvas);
+        resizeCanvas();
+
+        // 停止tap flower闪烁动画
+        function stopTapFlowerBlink() {
+            const tapFlower = document.querySelector('.tap-flower');
+            if (tapFlower) {
+                tapFlower.classList.add('stopped');
+            }
+        }
+
+        // 点击叶子触发energy线和mood energy动画
+        document.querySelector('.flower-leaf').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.energy-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.energy-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'left center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.mood-energy', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                }
+            });
+        });
+
+        // 点击label触发mood线和mood genre动画
+        document.querySelector('.flower-label').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.mood-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.mood-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'right center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.mood-genre', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                }
+            });
+        });
+
+        // 点击花触发status线和social status动画
+        document.querySelector('.flower-head').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.status-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.status-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'right center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.social-status', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                }
+            });
+        });
+
+        // 点击土触发genre线和music genres、鼓动画
+        document.querySelector('.flower-soil').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.genre-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.genre-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'left center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.music-genres', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                    gsap.to('.drum', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out',
+                        onStart: function() {
+                            document.querySelector('.drum').style.pointerEvents = 'auto';
+                        }
+                    });
+                }
+            });
+        });
+
+        // 点击茎触发creative线和creative input、音符文字动画
+        document.querySelector('.flower-stem').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.creative-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.creative-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'right center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.creative-input', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                    gsap.to('.note-text', {
+                        opacity: 1,
+                        duration: 0.5,
+                        stagger: 0.1,
+                        ease: 'power2.out'
+                    });
+                }
+            });
+        });
+
+        // La悬浮播放声音
+        document.querySelector('#note-la').addEventListener('mouseenter', function() {
+            document.getElementById('sfx-la').currentTime = 0;
+            document.getElementById('sfx-la').play().catch(() => {});
+        });
+
+        // 鼓悬浮播放声音
+        document.querySelector('.drum').addEventListener('mouseenter', function() {
+            document.getElementById('sfx-rnb').currentTime = 0;
+            document.getElementById('sfx-rnb').volume = 0.3;
+            document.getElementById('sfx-rnb').play().catch(() => {});
+        });
+
+        // 返回按钮点击关闭弹窗
+        document.querySelector('img[src*="返回"]').addEventListener('click', function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage('closePopup', '*');
+            } else {
+                window.close();
+            }
+        });
+
+        // 背景音乐
+        const bgm = document.getElementById('bgm');
+        bgm.volume = 0.2;
+        function playBgm() { bgm.play().catch(() => {}); }
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(playBgm, 100);
+        } else {
+            window.addEventListener('load', playBgm);
+        }
+    </script>
+</body>
+</html>

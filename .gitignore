@@ -1,0 +1,19 @@
+# Large media files
+*.mp4
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+
+# Word documents
+*.docx
+*~
+
+# Temporary files
+*.tmp
+.DS_Store
+
+# Claude files
+.claude/
+.vscode/

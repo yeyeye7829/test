@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometric Design</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tilt+Warp&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background-color: #000; }
+        #viewport-wrapper { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        #page-canvas { width: 1920px; height: 1080px; position: relative; flex-shrink: 0; transform-origin: center center; transition: transform 0.1s ease-out; background: #FFFFFF; overflow: hidden; }
+
+        .page-title {
+            position: absolute;
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: 128px;
+            font-weight: 400;
+            color: #000;
+            top: 839px;
+            left: 137px;
+            z-index: 1000;
+            line-height: 1;
+        }
+        .page-title span { display: inline-block; margin-right: 0.25em; cursor: default; }
+        .slash-wrapper { position: absolute; left: 508px; top: 856.69px; z-index: 2000; pointer-events: auto !important; }
+        .slash-wrapper svg { pointer-events: auto !important; display: block; }
+
+        /* 物理组容器 - shape黑盒 */
+        .phys-group { position: absolute; cursor: pointer; }
+        .shape-svg { position: absolute; top: 0; left: 0; display: block; }
+
+        /* 线条画布 - 独立svg层 */
+        .stem-svg { position: absolute; pointer-events: none; overflow: visible; }
+
+        /* 花瓣悬浮放大效果 */
+        .hover-zoom {
+            position: absolute;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: right center;
+            pointer-events: auto;
+        }
+        .hover-zoom:hover {
+            transform: scale(1.1);
+        }
+
+        /* 文字入场动画初始状态 */
+        .entrance-title {
+            opacity: 0;
+            transform: translateX(-100px);
+        }
+
+        /* 提示文字闪烁动画 */
+        @keyframes hintBlink {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        .hint-text {
+            animation: hintBlink 1.5s ease-in-out infinite;
+        }
+        .hint-text.hidden {
+            animation: none;
+        }
+
+        /* 卡片颜色切换样式 */
+        .card-container {
+            position: absolute;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .card-front, .card-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .card-back {
+            opacity: 0;
+        }
+        .card-container.switched .card-front {
+            opacity: 0;
+        }
+        .card-container.switched .card-back {
+            opacity: 1;
+        }
+
+        /* 唱片旋转动画 */
+        @keyframes recordSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .record-spin {
+            animation: recordSpin 8s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <audio id="bgm" src="../../音乐/二级页面1背景乐.mp3" loop></audio>
+    <div id="viewport-wrapper">
+        <div id="page-canvas">
+            <img src="asset/树林.svg" style="position: absolute; left: -51px; top: -35px; width: auto; height: auto; pointer-events: none;">
+            <img src="asset/树林底部.svg" style="position: absolute; left: 0px; top: 1040px; width: auto; height: auto; pointer-events: none;">
+            <object class="entrance-title" data="asset/树叶间隔.svg" style="position: absolute; left: 490px; top: 62px; width: auto; height: auto; pointer-events: none; z-index: 10000;" type="image/svg+xml"></object>
+            <svg class="hover-zoom" style="position: absolute; left: 1416px; top: 435px; width: 338px; height: 359px; pointer-events: none; z-index: 10001;" viewBox="0 0 338 359" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0.000157083 179.535L98.1392 284.007C136.958 325.331 199.896 325.331 238.714 284.007L336.853 179.535H0.000157083Z" fill="#FE9973" style="pointer-events: all;"/>
+                <path d="M0.347325 179.295H337.201L288.131 231.531H49.4169L0.347325 179.295Z" fill="#F88256" style="pointer-events: all;"/>
+            </svg>
+            <svg class="hover-zoom" style="position: absolute; left: 1582px; top: 390px; width: 214px; height: 214px; pointer-events: none; z-index: 10002;" viewBox="0 0 214 214" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0.413422 0.000152588L124.578 0.000152588C173.691 0.000152588 213.504 39.814 213.504 88.9269V213.091L0.413422 0.000152588Z" fill="#FECC73" style="pointer-events: all;"/>
+                <path d="M-0.000152588 0.173981L213.091 213.265V151.183L62.0819 0.173981L-0.000152588 0.173981Z" fill="#FFB15E" style="pointer-events: all;"/>
+            </svg>
+            <svg class="hover-zoom" style="position: absolute; left: 1582px; top: 603px; width: 214px; height: 214px; pointer-events: none; z-index: 10003;" viewBox="0 0 214 214" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0.41391 213.091H62.496H124.578C173.691 213.091 213.505 173.277 213.505 124.164V62.0821V0L0.41391 213.091Z" fill="#6CBDAA" style="pointer-events: all;"/>
+                <path d="M9.15527e-05 213.091L213.091 0V62.0821L62.0822 213.091H9.15527e-05Z" fill="#036F62" style="pointer-events: all;"/>
+            </svg>
+            <svg class="hover-zoom" style="position: absolute; left: 1416px; top: 413px; width: 338px; height: 359px; pointer-events: none; z-index: 10004;" viewBox="0 0 338 359" xmlns="http://www.w3.org/2000/svg">
+                <path d="M-8.70577e-05 179.295L98.139 74.8231C136.958 33.4994 199.895 33.4994 238.714 74.8231L336.853 179.295H-8.70577e-05Z" fill="#E94812" style="pointer-events: all;"/>
+                <path d="M0.346837 179.535H337.2L288.131 127.299H49.4164L0.346837 179.535Z" fill="#D13B09" style="pointer-events: all;"/>
+            </svg>
+            <svg class="hover-zoom" style="position: absolute; left: 1568px; top: 923px; width: 212px; height: 73px; pointer-events: none; z-index: 10008;" viewBox="0 0 212 73" xmlns="http://www.w3.org/2000/svg">
+                <rect width="212" height="73" rx="36.5" fill="#6CBDAA" style="pointer-events: all;"/>
+                <circle cx="31" cy="37" r="10" fill="#FBF6F2" style="pointer-events: all;"/>
+                <path d="M67.12 54C67.12 48.624 67.12 43.184 67.12 37.68C67.12 32.176 67.12 26.736 67.12 21.36C69.104 21.36 71.088 21.36 73.072 21.36C75.088 21.36 77.072 21.36 79.024 21.36C81.232 21.36 83.168 21.76 84.832 22.56C86.496 23.328 87.792 24.416 88.72 25.824C89.648 27.2 90.112 28.832 90.112 30.72C90.112 32.064 89.856 33.28 89.344 34.368C88.832 35.456 88.064 36.368 87.04 37.104C88.384 37.904 89.408 38.944 90.112 40.224C90.816 41.472 91.168 42.864 91.168 44.4C91.168 46.32 90.672 48 89.68 49.44C88.72 50.88 87.36 52 85.6 52.8C83.872 53.6 81.84 54 79.504 54C77.456 54 75.392 54 73.312 54C71.232 54 69.168 54 67.12 54ZM81.712 31.536C81.712 30.704 81.456 30.032 80.944 29.52C80.432 28.976 79.76 28.704 78.928 28.704C78.352 28.704 77.76 28.704 77.152 28.704C76.576 28.704 76 28.704 75.424 28.704C75.424 29.6 75.424 30.528 75.424 31.488C75.424 32.416 75.424 33.344 75.424 34.272C76 34.272 76.576 34.272 77.152 34.272C77.76 34.272 78.352 34.272 78.928 34.272C79.76 34.272 80.432 34.032 80.944 33.552C81.456 33.04 81.712 32.368 81.712 31.536ZM82.768 43.632C82.768 42.736 82.464 42.032 81.856 41.52C81.28 40.976 80.48 40.704 79.456 40.704C78.784 40.704 78.112 40.704 77.44 40.704C76.768 40.704 76.096 40.704 75.424 40.704C75.424 41.696 75.424 42.688 75.424 43.68C75.424 44.672 75.424 45.664 75.424 46.656C76.096 46.656 76.768 46.656 77.44 46.656C78.112 46.656 78.784 46.656 79.456 46.656C80.48 46.656 81.28 46.384 81.856 45.84C82.464 45.296 82.768 44.56 82.768 43.632ZM111.794 54C111.794 53.744 111.794 53.504 111.794 53.28C111.794 53.024 111.794 52.784 111.794 52.56C110.994 53.232 110.082 53.744 109.058 54.096C108.066 54.48 106.994 54.672 105.842 54.672C104.21 54.672 102.674 54.368 101.234 53.76C99.7938 53.12 98.5138 52.224 97.3938 51.072C96.3058 49.888 95.4418 48.496 94.8018 46.896C94.1938 45.296 93.8898 43.52 93.8898 41.568C93.8898 39.584 94.1938 37.792 94.8018 36.192C95.4418 34.592 96.3058 33.232 97.3938 32.112C98.5138 30.96 99.7938 30.08 101.234 29.472C102.674 28.832 104.194 28.512 105.794 28.512C106.946 28.512 108.034 28.704 109.058 29.088C110.082 29.44 110.994 29.936 111.794 30.576C111.794 30.32 111.794 30.08 111.794 29.856C111.794 29.632 111.794 29.408 111.794 29.184C113.106 29.184 114.434 29.184 115.778 29.184C117.122 29.184 118.434 29.184 119.714 29.184C119.714 33.28 119.714 37.424 119.714 41.616C119.714 45.776 119.714 49.904 119.714 54C118.434 54 117.122 54 115.778 54C114.434 54 113.106 54 111.794 54ZM106.898 47.664C108.434 47.664 109.666 47.104 110.594 45.984C111.522 44.864 111.986 43.392 111.986 41.568C111.986 39.744 111.522 38.288 110.594 37.2C109.666 36.08 108.434 35.52 106.898 35.52C105.33 35.52 104.082 36.064 103.154 37.152C102.258 38.24 101.81 39.712 101.81 41.568C101.81 43.424 102.258 44.912 103.154 46.032C104.082 47.12 105.33 47.664 106.898 47.664ZM123.655 41.568C123.655 39.136 124.151 37.008 125.143 35.184C126.135 33.328 127.511 31.84 129.271 30.72C131.031 29.6 133.079 28.928 135.415 28.704C137.751 28.448 140.247 28.72 142.903 29.52C142.903 30.736 142.903 31.968 142.903 33.216C142.903 34.464 142.903 35.696 142.903 36.912C141.047 36.016 139.271 35.6 137.575 35.664C135.879 35.728 134.487 36.256 133.399 37.248C132.311 38.208 131.767 39.648 131.767 41.568C131.767 43.488 132.311 44.944 133.399 45.936C134.487 46.896 135.879 47.408 137.575 47.472C139.271 47.504 141.047 47.088 142.903 46.224C142.903 47.44 142.903 48.672 142.903 49.92C142.903 51.168 142.903 52.4 142.903 53.616C140.247 54.416 137.751 54.688 135.415 54.432C133.079 54.208 131.031 53.536 129.271 52.416C127.511 51.296 126.135 49.824 125.143 48C124.151 46.144 123.655 44 123.655 41.568ZM148.068 54C148.068 48.208 148.068 42.368 148.068 36.48C148.068 30.592 148.068 24.752 148.068 18.96C149.38 18.96 150.708 18.96 152.052 18.96C153.396 18.96 154.708 18.96 155.988 18.96C155.988 22.096 155.988 25.28 155.988 28.512C155.988 31.744 155.988 34.928 155.988 38.064C157.14 36.592 158.292 35.12 159.444 33.648C160.596 32.144 161.748 30.656 162.9 29.184C164.436 29.184 165.972 29.184 167.508 29.184C169.076 29.184 170.628 29.184 172.164 29.184C170.66 31.072 169.124 32.976 167.556 34.896C166.02 36.816 164.5 38.72 162.996 40.608C164.596 42.816 166.196 45.056 167.796 47.328C169.428 49.568 171.028 51.792 172.596 54C171.028 54 169.46 54 167.892 54C166.324 54 164.756 54 163.188 54C162.004 52.304 160.804 50.592 159.588 48.864C158.372 47.104 157.172 45.376 155.988 43.68C155.988 45.376 155.988 47.104 155.988 48.864C155.988 50.592 155.988 52.304 155.988 54C154.708 54 153.396 54 152.052 54C150.708 54 149.38 54 148.068 54Z" fill="#FBF6F2" style="pointer-events: all;"/>
+            </svg>
+            <object data="asset/目录茎.svg" style="position: absolute; left: 1795px; top: 603px; width: auto; height: auto; pointer-events: none; z-index: 10005;" type="image/svg+xml"></object>
+            <object data="asset/上叶子.svg" style="position: absolute; left: 1848px; top: 393px; width: auto; height: auto; pointer-events: none; z-index: 10006;" type="image/svg+xml"></object>
+            <object data="asset/下叶子.svg" style="position: absolute; left: 1848px; top: 632px; width: auto; height: auto; pointer-events: none; z-index: 10007;" type="image/svg+xml"></object>
+            <div class="entrance-title" style="position: absolute; left: 140px; top: 62px; font-family: 'Tilt Warp', sans-serif; font-size: 128px; color: #404040; line-height: 87%; z-index: 10009;">Mood</div>
+            <div class="entrance-title" style="position: absolute; left: 645px; top: 62px; font-family: 'Tilt Warp', sans-serif; font-size: 128px; color: #404040; line-height: 87%; z-index: 10010;">Genre</div>
+            <div class="entrance-title" style="position: absolute; left: 1130px; top: 48px; font-family: 'Tilt Warp', sans-serif; font-size: 40px; color: #686868; line-height: 87%; z-index: 10011;">Flower Language</div>
+            <div class="entrance-title" style="position: absolute; left: 1130px; top: 94px; font-family: 'Tilt Warp', sans-serif; font-size: 28px; color: #7E7E7E; line-height: 87%; z-index: 10012; white-space: pre-wrap; text-align: left;">I connect flower language with music genres, using
+them to tell the story of my state at each stage
+of life.</div>
+            <object data="asset/替身2.svg" style="position: absolute; left: 188px; top: 321px; width: auto; height: auto; pointer-events: none; z-index: 10013;" type="image/svg+xml"></object>
+            <object data="asset/替身1.svg" style="position: absolute; left: 170px; top: 339px; width: auto; height: auto; pointer-events: none; z-index: 10014;" type="image/svg+xml"></object>
+            <div class="card-container" id="card-romantic" style="position: absolute; left: 150px; top: 358px; width: 1156px; height: 642px; z-index: 10015;">
+                <div class="card-inner">
+                    <div class="card-front" style="pointer-events: auto;">
+                        <div class="card-click-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer;"></div>
+                        <object data="asset/nursery卡片.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <object data="asset/唱片左上角.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <object class="record-spin" data="asset/唱片圆nursery.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-romantic" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                    <div class="card-back" style="pointer-events: none;">
+                        <object data="asset/雏菊反面.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-back" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-container" id="card-addictive" style="position: absolute; left: 150px; top: 358px; width: 1156px; height: 642px; z-index: 10016; display: none; pointer-events: auto; opacity: 0;">
+                <div class="card-inner">
+                    <div class="card-front" style="pointer-events: auto;">
+                        <div class="card-click-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer;"></div>
+                        <object data="asset/addictive卡片.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <object data="asset/唱片左上角.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <object class="record-spin" data="asset/唱片圆addictive.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-addictive" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                    <div class="card-back" style="pointer-events: none;">
+                        <object data="asset/月季反面.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-addictive-back" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-container" id="card-western" style="position: absolute; left: 150px; top: 358px; width: 1156px; height: 642px; z-index: 10017; display: none; pointer-events: auto; opacity: 0;">
+                <div class="card-inner">
+                    <div class="card-front" style="pointer-events: auto;">
+                        <div class="card-click-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer;"></div>
+                        <object data="asset/western卡片.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <object data="asset/唱片左上角.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <object class="record-spin" data="asset/唱片圆western.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-western" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                    <div class="card-back" style="pointer-events: none;">
+                        <object data="asset/菟丝子反面.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-western-back" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-container" id="card-pop" style="position: absolute; left: 150px; top: 358px; width: 1156px; height: 642px; z-index: 10018; display: none; pointer-events: auto; opacity: 0;">
+                <div class="card-inner">
+                    <div class="card-front" style="pointer-events: auto;">
+                        <div class="card-click-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer;"></div>
+                        <object data="asset/pop卡片.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <object data="asset/唱片左上角.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <object class="record-spin" data="asset/唱片圆pop.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-pop" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                    <div class="card-back" style="pointer-events: none;">
+                        <object data="asset/郁金香反面.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-pop-back" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-container" id="card-light" style="position: absolute; left: 150px; top: 358px; width: 1156px; height: 642px; z-index: 10019; display: none; pointer-events: auto; opacity: 0;">
+                <div class="card-inner">
+                    <div class="card-front" style="pointer-events: auto;">
+                        <div class="card-click-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer;"></div>
+                        <object data="asset/light卡片.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <object data="asset/唱片左上角.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <object class="record-spin" data="asset/唱片圆light.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-light" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                    <div class="card-back" style="pointer-events: none;">
+                        <object data="asset/铃兰反面.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-light-back" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-container" id="card-rnb" style="position: absolute; left: 150px; top: 358px; width: 1156px; height: 642px; z-index: 10020; display: none; pointer-events: auto; opacity: 0;">
+                <div class="card-inner">
+                    <div class="card-front" style="pointer-events: auto;">
+                        <div class="card-click-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer;"></div>
+                        <object data="asset/rnb卡片.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <object data="asset/唱片左上角.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <object class="record-spin" data="asset/唱片圆rnb.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-rnb" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                    <div class="card-back" style="pointer-events: none;">
+                        <object data="asset/三色堇反面.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-rnb-back" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-container" id="card-romantic7" style="position: absolute; left: 150px; top: 358px; width: 1156px; height: 642px; z-index: 10021; display: none; pointer-events: auto; opacity: 0;">
+                <div class="card-inner">
+                    <div class="card-front" style="pointer-events: auto;">
+                        <div class="card-click-area" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: pointer;"></div>
+                        <object data="asset/romantic卡片.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <object data="asset/唱片左上角.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <object class="record-spin" data="asset/唱片圆romantic.svg" style="position: absolute; left: 77px; top: 62px; width: auto; height: auto; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-rnb-front" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                    <div class="card-back" style="pointer-events: none;">
+                        <object data="asset/玛格丽特反面.svg" style="position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        <div id="x-btn-rnb-back-2" class="hover-zoom" style="position: absolute; left: 1065px; top: 46px; width: 44px; height: 44px; pointer-events: all; z-index: 10021; cursor: pointer;">
+                            <object data="asset/叉叉.svg" style="width: 100%; height: 100%; pointer-events: none;" type="image/svg+xml"></object>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function resizeCanvas() {
+            const canvas = document.getElementById('page-canvas');
+            if (!canvas) return;
+            const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+            canvas.style.transform = `scale(${scale})`;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('DOMContentLoaded', resizeCanvas);
+        resizeCanvas();
+
+        // 树林和树叶浮动动画 - 模仿被风吹动
+        function floatAnimation(element, delay = 0) {
+            gsap.to(element, {
+                x: 10,
+                y: 10,
+                rotation: 0.3,
+                duration: 2 + Math.random(),
+                delay: delay,
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut'
+            });
+            gsap.to(element, {
+                x: -10,
+                y: -10,
+                rotation: -0.3,
+                duration: 2 + Math.random(),
+                delay: delay + 1,
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut'
+            });
+        }
+
+        const forestSvg = document.querySelector('img[src*="树林.svg"]');
+        const forestBottomSvg = document.querySelector('img[src*="树林底部.svg"]');
+        const leavesSvg = document.querySelectorAll('object[data*="树叶间隔.svg"]');
+
+        if (forestSvg) floatAnimation(forestSvg, 0);
+        if (forestBottomSvg) floatAnimation(forestBottomSvg, 0.2);
+
+        // 文字和树叶间隔入场动画 - bounce.out弹跳横向滑入效果
+        // 入场动画 - Mood → 树叶间隔 → Genre 顺序
+        const entranceEls = document.querySelectorAll('.entrance-title');
+        if (entranceEls[1]) gsap.fromTo(entranceEls[1], // Mood
+            { x: -100, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.8, delay: 0, ease: 'bounce.out' }
+        );
+        if (entranceEls[0]) gsap.fromTo(entranceEls[0], // 树叶间隔
+            { x: -100, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.8, delay: 0.25, ease: 'power2.out' }
+        );
+        if (entranceEls[2]) gsap.fromTo(entranceEls[2], // Genre
+            { x: -100, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.8, delay: 0.5, ease: 'bounce.out' }
+        );
+        if (entranceEls[3]) gsap.fromTo(entranceEls[3], // Flower Language
+            { x: -100, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.8, delay: 0.6, ease: 'bounce.out' }
+        );
+        if (entranceEls[4]) gsap.fromTo(entranceEls[4], // I connect...
+            { x: -100, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.8, delay: 0.7, ease: 'bounce.out' }
+        );
+
+        // 点击事件
+        document.querySelectorAll('.hover-zoom').forEach(el => {
+            el.addEventListener('click', function(e) {
+                const style = this.getAttribute('style') || '';
+                if (style.includes('left: 1568px')) {
+                    // back按钮 - 返回
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage('closePopup', '*');
+                    } else {
+                        window.close();
+                    }
+                } else if (style.includes('left: 1582px') && style.includes('top: 390px')) {
+                    // 黄花瓣 - 跳转输入.html
+                    window.location.href = '../creative input/输入.html';
+                } else if (style.includes('left: 1416px') && style.includes('top: 435px')) {
+                    // 橘色花瓣 - 跳转社交.html
+                    window.location.href = '../social status/社交.html';
+                } else if (style.includes('left: 1416px') && style.includes('top: 413px')) {
+                    // 红色花瓣 - 跳转情绪.html
+                    window.location.href = '../mood energy/情绪.html';
+                } else if (style.includes('left: 1582px') && style.includes('top: 603px')) {
+                    // 粉绿花瓣 - 返回
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage('closePopup', '*');
+                    } else {
+                        window.close();
+                    }
+                }
+            });
+        });
+
+        // 卡片颜色切换效果 - 点击卡片正面区域
+        const cardRomantic = document.getElementById('card-romantic');
+        const cardRomanticClickArea = cardRomantic ? cardRomantic.querySelector('.card-click-area') : null;
+        const cardRomanticFront = cardRomantic ? cardRomantic.querySelector('.card-front') : null;
+        const cardRomanticBack = cardRomantic ? cardRomantic.querySelector('.card-back') : null;
+
+        if (cardRomanticClickArea && cardRomanticFront && cardRomanticBack) {
+            cardRomanticClickArea.addEventListener('click', function(e) {
+                // 如果点击的是叉叉，不处理卡片切换
+                if (e.target.closest('#x-btn-romantic')) return;
+
+                if (cardRomantic.classList.contains('switched')) {
+                    gsap.to(cardRomanticFront, { opacity: 1, filter: 'hue-rotate(0deg)', duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardRomanticBack, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    cardRomantic.classList.remove('switched');
+                } else {
+                    gsap.to(cardRomanticFront, { opacity: 0, filter: 'hue-rotate(180deg)', duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardRomanticBack, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    cardRomantic.classList.add('switched');
+                }
+            });
+        }
+
+        // 点击叉叉切换到卡片2
+        var xBtnRomantic = document.getElementById('x-btn-romantic');
+        var xBtnAddictive = document.getElementById('x-btn-addictive');
+        var cardAddictive = document.getElementById('card-addictive');
+
+        if (xBtnRomantic && cardRomantic && cardAddictive) {
+            xBtnRomantic.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // 隐藏card-romantic，动画显示card-addictive
+                gsap.to(cardRomantic, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardRomantic.style.display = 'none';
+                    cardAddictive.style.display = 'block';
+                    gsap.fromTo(cardAddictive, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        if (xBtnAddictive && cardAddictive) {
+            xBtnAddictive.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // 隐藏card-addictive，返回card-romantic
+                gsap.to(cardAddictive, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardAddictive.style.display = 'none';
+                    cardRomantic.style.display = 'block';
+                    gsap.fromTo(cardRomantic, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 反面叉叉点击 - 切换到卡片2
+        var xBtnBack = document.getElementById('x-btn-back');
+        if (xBtnBack && cardRomantic && cardAddictive) {
+            xBtnBack.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // 隐藏card-romantic，动画显示card-addictive
+                gsap.to(cardRomantic, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardRomantic.style.display = 'none';
+                    cardRomantic.classList.remove('switched');
+                    // 重置romantic卡片状态
+                    gsap.set(cardRomanticFront, { opacity: 1, filter: 'hue-rotate(0deg)' });
+                    gsap.set(cardRomanticBack, { opacity: 0 });
+                    cardAddictive.style.display = 'block';
+                    gsap.fromTo(cardAddictive, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片2正面点击切换到反面
+        const cardAddictiveEl = document.getElementById('card-addictive');
+        const cardAddictiveClickArea = cardAddictiveEl ? cardAddictiveEl.querySelector('.card-click-area') : null;
+        const cardAddictiveFront = cardAddictiveEl ? cardAddictiveEl.querySelector('.card-front') : null;
+        const cardAddictiveBack = cardAddictiveEl ? cardAddictiveEl.querySelector('.card-back') : null;
+
+        if (cardAddictiveClickArea && cardAddictiveFront && cardAddictiveBack) {
+            cardAddictiveClickArea.addEventListener('click', function(e) {
+                if (e.target.closest('#x-btn-addictive')) return;
+
+                if (cardAddictiveEl.classList.contains('switched')) {
+                    gsap.to(cardAddictiveFront, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardAddictiveBack, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    cardAddictiveEl.classList.remove('switched');
+                } else {
+                    gsap.to(cardAddictiveFront, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardAddictiveBack, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    cardAddictiveEl.classList.add('switched');
+                }
+            });
+        }
+
+        // 卡片2正面叉叉点击 - 切换到卡片3
+        var xBtnAddictive = document.getElementById('x-btn-addictive');
+        var cardWestern = document.getElementById('card-western');
+        if (xBtnAddictive && cardAddictive && cardWestern) {
+            xBtnAddictive.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardAddictive, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardAddictive.style.display = 'none';
+                    cardAddictive.classList.remove('switched');
+                    gsap.set(cardAddictiveFront, { opacity: 1 });
+                    gsap.set(cardAddictiveBack, { opacity: 0 });
+                    cardWestern.style.display = 'block';
+                    gsap.fromTo(cardWestern, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片2反面叉叉点击 - 切换到卡片3
+        var xBtnAddictiveBack = document.getElementById('x-btn-addictive-back');
+        if (xBtnAddictiveBack && cardAddictive && cardWestern) {
+            xBtnAddictiveBack.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardAddictive, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardAddictive.style.display = 'none';
+                    cardAddictive.classList.remove('switched');
+                    gsap.set(cardAddictiveFront, { opacity: 1 });
+                    gsap.set(cardAddictiveBack, { opacity: 0 });
+                    cardWestern.style.display = 'block';
+                    gsap.fromTo(cardWestern, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片3正面点击切换到反面
+        const cardWesternEl = document.getElementById('card-western');
+        const cardWesternClickArea = cardWesternEl ? cardWesternEl.querySelector('.card-click-area') : null;
+        const cardWesternFront = cardWesternEl ? cardWesternEl.querySelector('.card-front') : null;
+        const cardWesternBack = cardWesternEl ? cardWesternEl.querySelector('.card-back') : null;
+
+        if (cardWesternClickArea && cardWesternFront && cardWesternBack) {
+            cardWesternClickArea.addEventListener('click', function(e) {
+                if (e.target.closest('#x-btn-western')) return;
+
+                if (cardWesternEl.classList.contains('switched')) {
+                    gsap.to(cardWesternFront, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardWesternBack, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    cardWesternEl.classList.remove('switched');
+                } else {
+                    gsap.to(cardWesternFront, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardWesternBack, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    cardWesternEl.classList.add('switched');
+                }
+            });
+        }
+
+        // 卡片3正面叉叉点击 - 切换到卡片4
+        var xBtnWestern = document.getElementById('x-btn-western');
+        var cardPop = document.getElementById('card-pop');
+        if (xBtnWestern && cardWestern && cardPop) {
+            xBtnWestern.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardWestern, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardWestern.style.display = 'none';
+                    cardWestern.classList.remove('switched');
+                    gsap.set(cardWesternFront, { opacity: 1 });
+                    gsap.set(cardWesternBack, { opacity: 0 });
+                    cardPop.style.display = 'block';
+                    gsap.fromTo(cardPop, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片3反面叉叉点击 - 切换到卡片4
+        var xBtnWesternBack = document.getElementById('x-btn-western-back');
+        if (xBtnWesternBack && cardWestern && cardPop) {
+            xBtnWesternBack.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardWestern, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardWestern.style.display = 'none';
+                    cardWestern.classList.remove('switched');
+                    gsap.set(cardWesternFront, { opacity: 1 });
+                    gsap.set(cardWesternBack, { opacity: 0 });
+                    cardPop.style.display = 'block';
+                    gsap.fromTo(cardPop, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片4正面点击切换到反面
+        const cardPopEl = document.getElementById('card-pop');
+        const cardPopClickArea = cardPopEl ? cardPopEl.querySelector('.card-click-area') : null;
+        const cardPopFront = cardPopEl ? cardPopEl.querySelector('.card-front') : null;
+        const cardPopBack = cardPopEl ? cardPopEl.querySelector('.card-back') : null;
+
+        if (cardPopClickArea && cardPopFront && cardPopBack) {
+            cardPopClickArea.addEventListener('click', function(e) {
+                if (e.target.closest('#x-btn-pop')) return;
+
+                if (cardPopEl.classList.contains('switched')) {
+                    gsap.to(cardPopFront, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardPopBack, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    cardPopEl.classList.remove('switched');
+                } else {
+                    gsap.to(cardPopFront, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardPopBack, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    cardPopEl.classList.add('switched');
+                }
+            });
+        }
+
+        // 卡片4正面叉叉点击 - 切换到卡片5
+        var xBtnPop = document.getElementById('x-btn-pop');
+        var cardLight = document.getElementById('card-light');
+        if (xBtnPop && cardPop && cardLight) {
+            xBtnPop.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardPop, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardPop.style.display = 'none';
+                    cardPop.classList.remove('switched');
+                    gsap.set(cardPopFront, { opacity: 1 });
+                    gsap.set(cardPopBack, { opacity: 0 });
+                    cardLight.style.display = 'block';
+                    gsap.fromTo(cardLight, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片4反面叉叉点击 - 切换到卡片5
+        var xBtnPopBack = document.getElementById('x-btn-pop-back');
+        if (xBtnPopBack && cardPop && cardLight) {
+            xBtnPopBack.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardPop, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardPop.style.display = 'none';
+                    cardPop.classList.remove('switched');
+                    gsap.set(cardPopFront, { opacity: 1 });
+                    gsap.set(cardPopBack, { opacity: 0 });
+                    cardLight.style.display = 'block';
+                    gsap.fromTo(cardLight, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片5正面点击切换到反面
+        const cardLightEl = document.getElementById('card-light');
+        const cardLightClickArea = cardLightEl ? cardLightEl.querySelector('.card-click-area') : null;
+        const cardLightFront = cardLightEl ? cardLightEl.querySelector('.card-front') : null;
+        const cardLightBack = cardLightEl ? cardLightEl.querySelector('.card-back') : null;
+
+        if (cardLightClickArea && cardLightFront && cardLightBack) {
+            cardLightClickArea.addEventListener('click', function(e) {
+                if (e.target.closest('#x-btn-light')) return;
+
+                if (cardLightEl.classList.contains('switched')) {
+                    gsap.to(cardLightFront, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardLightBack, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    cardLightEl.classList.remove('switched');
+                } else {
+                    gsap.to(cardLightFront, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardLightBack, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    cardLightEl.classList.add('switched');
+                }
+            });
+        }
+
+        // 卡片5正面叉叉点击 - 切换到卡片6
+        var xBtnLight = document.getElementById('x-btn-light');
+        var cardRnb = document.getElementById('card-rnb');
+        if (xBtnLight && cardLight && cardRnb) {
+            xBtnLight.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardLight, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardLight.style.display = 'none';
+                    cardLight.classList.remove('switched');
+                    gsap.set(cardLightFront, { opacity: 1 });
+                    gsap.set(cardLightBack, { opacity: 0 });
+                    cardRnb.style.display = 'block';
+                    gsap.fromTo(cardRnb, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片5反面叉叉点击 - 切换到卡片6
+        var xBtnLightBack = document.getElementById('x-btn-light-back');
+        if (xBtnLightBack && cardLight && cardRnb) {
+            xBtnLightBack.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardLight, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardLight.style.display = 'none';
+                    cardLight.classList.remove('switched');
+                    gsap.set(cardLightFront, { opacity: 1 });
+                    gsap.set(cardLightBack, { opacity: 0 });
+                    cardRnb.style.display = 'block';
+                    gsap.fromTo(cardRnb, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片6正面点击切换到反面
+        const cardRnbEl = document.getElementById('card-rnb');
+        const cardRnbClickArea = cardRnbEl ? cardRnbEl.querySelector('.card-click-area') : null;
+        const cardRnbFront = cardRnbEl ? cardRnbEl.querySelector('.card-front') : null;
+        const cardRnbBack = cardRnbEl ? cardRnbEl.querySelector('.card-back') : null;
+
+        if (cardRnbClickArea && cardRnbFront && cardRnbBack) {
+            cardRnbClickArea.addEventListener('click', function(e) {
+                if (e.target.closest('#x-btn-rnb')) return;
+
+                if (cardRnbEl.classList.contains('switched')) {
+                    gsap.to(cardRnbFront, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardRnbBack, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    cardRnbEl.classList.remove('switched');
+                } else {
+                    gsap.to(cardRnbFront, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardRnbBack, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    cardRnbEl.classList.add('switched');
+                }
+            });
+        }
+
+        // 卡片6正面叉叉点击 - 切换到卡片7
+        var xBtnRnb = document.getElementById('x-btn-rnb');
+        var cardRomantic7 = document.getElementById('card-romantic7');
+        if (xBtnRnb && cardRnb && cardRomantic7) {
+            xBtnRnb.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardRnb, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardRnb.style.display = 'none';
+                    cardRnb.classList.remove('switched');
+                    gsap.set(cardRnbFront, { opacity: 1 });
+                    gsap.set(cardRnbBack, { opacity: 0 });
+                    cardRomantic7.style.display = 'block';
+                    gsap.fromTo(cardRomantic7, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片6反面叉叉点击 - 切换到卡片7
+        var xBtnRnbBack = document.getElementById('x-btn-rnb-back');
+        if (xBtnRnbBack && cardRnb && cardRomantic7) {
+            xBtnRnbBack.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardRnb, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardRnb.style.display = 'none';
+                    cardRnb.classList.remove('switched');
+                    gsap.set(cardRnbFront, { opacity: 1 });
+                    gsap.set(cardRnbBack, { opacity: 0 });
+                    cardRomantic7.style.display = 'block';
+                    gsap.fromTo(cardRomantic7, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片7正面点击切换到反面
+        const cardRomantic7El = document.getElementById('card-romantic7');
+        const cardRomantic7ClickArea = cardRomantic7El ? cardRomantic7El.querySelector('.card-click-area') : null;
+        const cardRomantic7Front = cardRomantic7El ? cardRomantic7El.querySelector('.card-front') : null;
+        const cardRomantic7Back = cardRomantic7El ? cardRomantic7El.querySelector('.card-back') : null;
+
+        if (cardRomantic7ClickArea && cardRomantic7Front && cardRomantic7Back) {
+            cardRomantic7ClickArea.addEventListener('click', function(e) {
+                if (e.target.closest('#x-btn-rnb-front')) return;
+
+                if (cardRomantic7El.classList.contains('switched')) {
+                    gsap.to(cardRomantic7Front, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardRomantic7Back, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    cardRomantic7El.classList.remove('switched');
+                } else {
+                    gsap.to(cardRomantic7Front, { opacity: 0, duration: 0.5, ease: 'power2.out' });
+                    gsap.to(cardRomantic7Back, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+                    cardRomantic7El.classList.add('switched');
+                }
+            });
+        }
+
+        // 卡片7正面叉叉点击 - 循环切换到卡片1
+        var xBtnRnbFront = document.getElementById('x-btn-rnb-front');
+        if (xBtnRnbFront && cardRomantic7 && cardRomantic) {
+            xBtnRnbFront.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardRomantic7, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardRomantic7.style.display = 'none';
+                    cardRomantic7.classList.remove('switched');
+                    gsap.set(cardRomantic7Front, { opacity: 1 });
+                    gsap.set(cardRomantic7Back, { opacity: 0 });
+                    cardRomantic.style.display = 'block';
+                    gsap.fromTo(cardRomantic, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 卡片7反面叉叉点击 - 循环切换到卡片1
+        var xBtnRnbBack2 = document.getElementById('x-btn-rnb-back-2');
+        if (xBtnRnbBack2 && cardRomantic7 && cardRomantic) {
+            xBtnRnbBack2.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gsap.to(cardRomantic7, { opacity: 0, duration: 0.3, ease: 'power2.out', onComplete: function() {
+                    cardRomantic7.style.display = 'none';
+                    cardRomantic7.classList.remove('switched');
+                    gsap.set(cardRomantic7Front, { opacity: 1 });
+                    gsap.set(cardRomantic7Back, { opacity: 0 });
+                    cardRomantic.style.display = 'block';
+                    gsap.fromTo(cardRomantic, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' });
+                }});
+            });
+        }
+
+        // 背景音乐
+        const bgm = document.getElementById('bgm');
+        bgm.volume = 0.2;
+        window.addEventListener('load', function() {
+            bgm.play().catch(() => {});
+        });
+    </script>
+</body>
+</html>

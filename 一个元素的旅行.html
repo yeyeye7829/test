@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一个元素的旅行："空"不只是空</title>
+
+    <!-- Fonts: Vintage Editorial style -->
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,700;0,900&family=Work+Sans:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-cream: #f5f3ee;
+            --text-primary: #1a1a1a;
+            --text-secondary: #555;
+            --accent-warm: #e8d4c0;
+            --accent-dark: #2d2d2d;
+
+            --font-display: "Fraunces", serif;
+            --font-body: "Work Sans", sans-serif;
+
+            --title-size: clamp(2.2rem, 5vw, 4rem);
+            --h2-size: clamp(1.6rem, 3.5vw, 2.5rem);
+            --h3-size: clamp(1.2rem, 2.2vw, 1.6rem);
+            --body-size: clamp(0.95rem, 1.5vw, 1.2rem);
+            --small-size: clamp(0.8rem, 1.2vw, 1rem);
+
+            --slide-padding: clamp(1.5rem, 4vw, 4rem);
+            --content-gap: clamp(0.8rem, 2vw, 1.5rem);
+
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --duration-normal: 0.8s;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-cream);
+            color: var(--text-primary);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding: var(--slide-padding);
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+        }
+
+        .geo-circle {
+            position: absolute;
+            border: 2px solid var(--accent-warm);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .geo-line {
+            position: absolute;
+            height: 2px;
+            background: var(--accent-warm);
+            pointer-events: none;
+        }
+        .geo-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-dark);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .geo-1 { width: 120px; height: 120px; top: 8%; right: 12%; opacity: 0.4; }
+        .geo-2 { width: 60px; height: 60px; bottom: 15%; left: 8%; opacity: 0.3; }
+        .geo-3 { width: 2px; height: 80px; top: 20%; left: 15%; }
+        .geo-4 { width: 6px; height: 6px; bottom: 25%; right: 20%; }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: var(--title-size);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-family: var(--font-display);
+            font-size: var(--h2-size);
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--content-gap);
+        }
+
+        h3 {
+            font-family: var(--font-display);
+            font-size: var(--h3-size);
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        p { font-size: var(--body-size); color: var(--text-primary); }
+
+        .subtitle {
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .keyword {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-style: italic;
+        }
+
+        .quote {
+            font-family: var(--font-display);
+            font-style: italic;
+            font-size: var(--body-size);
+            border-left: 3px solid var(--accent-dark);
+            padding-left: var(--content-gap);
+            margin: var(--content-gap) 0;
+        }
+
+        .quote-attr { font-size: var(--small-size); color: var(--text-secondary); font-style: normal; }
+
+        .title-slide { justify-content: center; align-items: center; text-align: center; }
+        .title-slide h1 { margin-bottom: 0.5rem; }
+        .title-slide .accent-line { margin: var(--content-gap) auto; }
+
+        .content-slide { justify-content: center; }
+        .content-slide .slide-content { max-width: 1100px; margin: 0 auto; width: 100%; }
+
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: var(--content-gap); align-items: center; }
+        .two-column-text { display: grid; grid-template-columns: 1fr 1fr; gap: var(--content-gap); }
+        .three-column { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--content-gap); align-items: start; }
+        .image-full { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .image-side { display: grid; grid-template-columns: 1fr 1fr; gap: var(--content-gap); align-items: center; }
+        .image-side .text-side { display: flex; flex-direction: column; gap: var(--content-gap); }
+        .text-block { display: flex; flex-direction: column; gap: clamp(0.5rem, 1.5vh, 1rem); }
+
+        .slide-image {
+            max-width: 100%;
+            max-height: min(42vh, 360px);
+            object-fit: contain;
+            border-radius: 2px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .slide-image-small {
+            max-width: 100%;
+            max-height: min(32vh, 280px);
+            object-fit: contain;
+            border-radius: 2px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .slide-image-large {
+            max-width: 100%;
+            max-height: min(55vh, 480px);
+            object-fit: contain;
+            border-radius: 2px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-caption {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            margin-top: 0.6rem;
+            text-align: center;
+            font-family: var(--font-display);
+            font-weight: 400;
+        }
+
+        .section-tag {
+            display: inline-block;
+            font-size: var(--small-size);
+            color: var(--bg-cream);
+            background: var(--accent-dark);
+            padding: 0.4em 1.2em;
+            margin-bottom: var(--content-gap);
+            font-family: var(--font-body);
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        .section-number {
+            position: absolute;
+            top: var(--slide-padding);
+            right: var(--slide-padding);
+            font-family: var(--font-display);
+            font-size: clamp(4rem, 10vw, 8rem);
+            font-weight: 900;
+            color: var(--accent-warm);
+            line-height: 1;
+        }
+
+        .accent-line { width: 80px; height: 3px; background: var(--accent-dark); margin: var(--content-gap) 0; }
+        .small-text { font-size: var(--small-size); color: var(--text-secondary); }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(25px);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+
+        .slide.visible .reveal {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal:nth-child(1) { transition-delay: 0.1s; }
+        .reveal:nth-child(2) { transition-delay: 0.2s; }
+        .reveal:nth-child(3) { transition-delay: 0.3s; }
+        .reveal:nth-child(4) { transition-delay: 0.4s; }
+        .reveal:nth-child(5) { transition-delay: 0.5s; }
+
+        .nav-dots {
+            position: fixed;
+            right: clamp(1rem, 2vw, 2rem);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            z-index: 100;
+        }
+
+        .nav-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-warm);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid var(--accent-dark);
+        }
+
+        .nav-dot.active { background: var(--accent-dark); transform: scale(1.2); }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: var(--accent-dark);
+            width: 0%;
+            z-index: 1000;
+            transition: width 0.2s ease;
+        }
+
+        @media (max-width: 768px) {
+            .two-column, .two-column-text, .image-side, .three-column { grid-template-columns: 1fr; }
+            .nav-dots { display: none; }
+            .slide-image { max-height: min(28vh, 220px); }
+            .slide-image-small { max-height: min(22vh, 180px); }
+            .slide-image-large { max-height: min(35vh, 280px); }
+            .geo-circle, .geo-line, .geo-dot { display: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal { opacity: 1; transform: none; transition: none; }
+            html { scroll-behavior: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar"></div>
+    <nav class="nav-dots"></nav>
+
+    <!-- SLIDE 1: TITLE -->
+    <section class="slide title-slide">
+        <div class="geo-circle geo-1"></div>
+        <div class="geo-circle geo-2"></div>
+        <div class="geo-line geo-3"></div>
+        <div class="geo-dot geo-4"></div>
+        <div class="slide-content">
+            <p class="subtitle reveal">一个元素的跨文化旅行</p>
+            <h1 class="reveal">"空"不只是空</h1>
+            <div class="accent-line reveal"></div>
+            <p class="reveal small-text">从中国画到日本设计，再到西方艺术</p>
+            <p class="reveal small-text" style="margin-top: 0.5rem;">追溯留白跨越千年、横贯东西的旅程</p>
+        </div>
+    </section>
+
+    <!-- SLIDE 2: 笪重光《画筌》- 无配图 -->
+    <section class="slide content-slide">
+        <span class="section-number">01</span>
+        <div class="slide-content">
+            <p class="section-tag reveal">引入</p>
+            <h2 class="reveal">什么是<span class="keyword">"空"</span>？</h2>
+            <div class="quote reveal">
+                "虚实相生，无画处皆成妙境"<br>
+                <span class="quote-attr">—— 笪重光《画筌》</span>
+            </div>
+            <div class="reveal text-block" style="margin-top: var(--content-gap);">
+                <p>清朝笪重光：空是"虚实相生"的哲学</p>
+                <p>西方罗伯特·雷曼：空是"白色这个颜色"</p>
+                <p class="small-text">同一个"空"字，为何跨越东西方差异如此之大？</p>
+            </div>
+            <div class="reveal" style="margin-top: var(--content-gap);">
+                <div class="accent-line"></div>
+                <p style="margin-top: var(--content-gap);">当一个共通的视觉元素跨域不同国界、不同时空、不同文化，它发生了什么适应性的变化？</p>
+                <p class="small-text" style="margin-top: 0.5rem;">是它自身变化了？还是解读它的人变了？</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 3: 哲学起源 -->
+    <section class="slide content-slide">
+        <span class="section-number">02</span>
+        <div class="slide-content">
+            <p class="section-tag reveal">起源</p>
+            <h2 class="reveal">中国画的<span class="keyword">空</span>：以哲学为根基</h2>
+            <div class="three-column" style="margin-top: var(--content-gap);">
+                <div class="reveal text-block">
+                    <h3>老子</h3>
+                    <p class="small-text">"无用之用"</p>
+                    <p class="small-text">"有之以为利，无之以为用"</p>
+                    <p class="small-text">三十辐共一毂，当其无，有车之用</p>
+                    <p class="small-text">埏埴以为器，当其无，有器之用</p>
+                </div>
+                <div class="reveal text-block">
+                    <h3>道家</h3>
+                    <p class="small-text">"道法自然"</p>
+                    <p class="small-text">"知其白，守其黑"</p>
+                    <p class="small-text">黑白相生相依，互为条件</p>
+                    <p class="small-text">虚与实相互成全，方为虚实</p>
+                </div>
+                <div class="reveal text-block">
+                    <h3>庄子</h3>
+                    <p class="small-text">"心斋""坐忘"</p>
+                    <p class="small-text">以达"虚静"</p>
+                    <p class="small-text">观空的方法</p>
+                </div>
+            </div>
+            <div class="reveal" style="margin-top: var(--content-gap); text-align: center;">
+                <div class="accent-line" style="margin: 0 auto;"></div>
+                <p style="font-size: var(--body-size); margin-top: var(--content-gap);">留白是"道"——难以道明却无处不在</p>
+                <p class="small-text">笔墨是"有"，留白是"无"，无造就了画面的呼吸感和想象空间</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 4: 北宋 vs 南宋 对比 -->
+    <section class="slide content-slide">
+        <span class="section-number">03</span>
+        <div class="slide-content">
+            <p class="section-tag reveal">变迁</p>
+            <h2 class="reveal">北宋 <span class="keyword">→</span> 南宋</h2>
+            <p class="reveal small-text" style="margin-bottom: var(--content-gap);">从满构图到"马一角"，从外界到内心</p>
+            <div class="two-column">
+                <div class="image-full reveal">
+                    <img src="一个元素的旅行-images/image10.png" alt="北宋" class="slide-image-small">
+                    <p class="image-caption">范宽《溪山行旅图》</p>
+                    <p class="small-text" style="margin-top: 0.3rem;">北宋 · 满构图</p>
+                    <div class="text-block" style="text-align: center; margin-top: 0.5rem;">
+                        <p class="small-text">追求"大山大水"的气魄</p>
+                        <p class="small-text">画面几乎填满</p>
+                        <p style="color: var(--accent-dark);">对秩序感的歌颂</p>
+                    </div>
+                </div>
+                <div class="image-full reveal">
+                    <img src="一个元素的旅行-images/image3.png" alt="南宋" class="slide-image-small">
+                    <p class="image-caption">马远、夏圭</p>
+                    <p class="small-text" style="margin-top: 0.3rem;">南宋 · "马一角"</p>
+                    <div class="text-block" style="text-align: center; margin-top: 0.5rem;">
+                        <p class="small-text">景色压缩至画面一角/半边</p>
+                        <p class="small-text">其余皆是留白</p>
+                        <p style="color: var(--accent-dark);">从外界到内心</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 5: 一叶扁舟分析 -->
+    <section class="slide content-slide">
+        <span class="section-number">04</span>
+        <div class="slide-content">
+            <div class="image-side">
+                <div class="image-full reveal">
+                    <img src="一个元素的旅行-images/image9.png" alt="一叶扁舟" class="slide-image-large">
+                    <p class="image-caption">马远《寒江独钓图》</p>
+                    <p class="small-text" style="margin-top: 0.3rem;">一叶扁舟 · 寒江独钓</p>
+                </div>
+                <div class="text-side">
+                    <p class="section-tag reveal">分析</p>
+                    <h2 class="reveal"><span class="keyword">一叶扁舟</span>的意境</h2>
+                    <div class="reveal text-block">
+                        <p>画面左中，一叶扁舟</p>
+                        <p>一位垂钓的老翁</p>
+                        <p>除此以外，剩下全是空白</p>
+                    </div>
+                    <div class="reveal" style="margin-top: var(--content-gap);">
+                        <div class="accent-line"></div>
+                        <p style="margin-top: var(--content-gap);">精彩的不是这一叶扁舟，而是用一叶扁舟衬托出来的空白和意境</p>
+                        <p class="small-text" style="margin-top: 0.5rem;">空白不是衬托船的绿叶背景，而是起主角作用的红花</p>
+                        <p class="small-text">没有了空白就失去了意境</p>
+                    </div>
+                    <div class="reveal" style="margin-top: var(--content-gap);">
+                        <p class="small-text" style="font-style: italic;">"一千个人眼中有一千个哈姆雷特"</p>
+                        <p class="small-text">空白留给了观者极广的想象空间</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 6: 元代《容膝斋图》 -->
+    <section class="slide content-slide">
+        <span class="section-number">05</span>
+        <div class="slide-content">
+            <div class="image-side">
+                <div class="image-full reveal">
+                    <img src="一个元素的旅行-images/image4.jpeg" alt="容膝斋图" class="slide-image">
+                    <p class="image-caption">倪瓒《容膝斋图》</p>
+                    <p class="small-text" style="margin-top: 0.3rem;">元代</p>
+                </div>
+                <div class="text-side">
+                    <p class="section-tag reveal">元代</p>
+                    <h2 class="reveal"><span class="keyword">空</span>的存在论维度</h2>
+                    <h3 class="reveal">三段式构图</h3>
+                    <div class="reveal text-block">
+                        <p class="small-text">远景：平缓的山景</p>
+                        <p class="small-text">中景：大量留白的水面</p>
+                        <p class="small-text">近景：坡石、枯树、空亭</p>
+                    </div>
+                    <div class="quote reveal" style="font-size: var(--small-size);">
+                        "景-空-景" → "实-虚-实"<br>
+                        空白起音乐中休止符的功能
+                    </div>
+                    <p class="reveal small-text">"容膝亭"取自陶渊明"审容膝之易安"</p>
+                    <p class="reveal" style="font-style: italic;">寒舍虽小，心有乾坤大</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 7: 日本《红白梅图屏风》 -->
+    <section class="slide content-slide">
+        <span class="section-number">06</span>
+        <div class="slide-content">
+            <div class="image-side">
+                <div class="image-full reveal">
+                    <img src="一个元素的旅行-images/image5.jpeg" alt="红白梅图屏风" class="slide-image">
+                    <p class="image-caption">尾形光琳《红白梅图屏风》</p>
+                    <p class="small-text" style="margin-top: 0.3rem;">江户时代 · 琳派</p>
+                </div>
+                <div class="text-side">
+                    <p class="section-tag reveal">日本</p>
+                    <h2 class="reveal"><span class="keyword">空</span>去精神化</h2>
+                    <div class="reveal text-block">
+                        <h3>从意境到装饰</h3>
+                        <p class="small-text">水流通过圆形波纹暗示，而非水墨晕染</p>
+                    </div>
+                    <div class="reveal text-block">
+                        <h3>功能转变</h3>
+                        <p class="small-text">营造空间深度 → 创造视觉节奏</p>
+                    </div>
+                    <div class="reveal text-block">
+                        <h3>民主化</h3>
+                        <p class="small-text">阅读门槛降低</p>
+                        <p class="small-text">空从精神性转向视觉性</p>
+                        <p class="small-text">进入日本设计体系</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 8: 西方《无题》 -->
+    <section class="slide content-slide">
+        <span class="section-number">07</span>
+        <div class="slide-content">
+            <div class="image-side">
+                <div class="image-full reveal">
+                    <img src="一个元素的旅行-images/image6.jpeg" alt="无题" class="slide-image">
+                    <p class="image-caption">罗伯特·雷曼《无题》1951</p>
+                    <p class="small-text" style="margin-top: 0.3rem;">西方极简主义</p>
+                </div>
+                <div class="text-side">
+                    <p class="section-tag reveal">西方</p>
+                    <h2 class="reveal">极简<span class="keyword">空</span>间</h2>
+                    <div class="quote reveal" style="font-size: var(--body-size);">
+                        "我不是在画空，我是在画白色这个颜色"<br>
+                        <span class="quote-attr">—— 罗伯特·雷曼</span>
+                    </div>
+                    <div class="reveal text-block">
+                        <h3>物即物</h3>
+                        <p class="small-text">指向：颜料本身，非意境</p>
+                        <p class="small-text">门槛：观众看即可，无需想象</p>
+                        <p class="small-text">态度：拒绝叙事，"物即物"</p>
+                        <p class="small-text">情感：坚硬与冷漠</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 9: 政治化 - 两张图 -->
+    <section class="slide content-slide">
+        <span class="section-number">08</span>
+        <div class="slide-content">
+            <p class="section-tag reveal">政治</p>
+            <h2 class="reveal"><span class="keyword">空</span>作为抵抗语言</h2>
+            <p class="reveal small-text" style="margin-bottom: var(--content-gap);">在政治高压下，"空"成为无声的抵抗语言</p>
+            <div class="two-column">
+                <div class="image-full reveal">
+                    <img src="一个元素的旅行-images/image7.jpeg" alt="蓝线系列" class="slide-image-small">
+                    <p class="image-caption">Edward Krasinski "蓝线"系列</p>
+                    <p class="small-text">1960s 冷战波兰</p>
+                    <div class="text-block" style="text-align: center; margin-top: 0.5rem;">
+                        <p class="small-text">空白墙面 + 一条蓝线</p>
+                        <p class="small-text">抽象艺术被视为"西方颓废形式主义"</p>
+                        <p class="small-text">空白画布本身即抵抗</p>
+                    </div>
+                </div>
+                <div class="image-full reveal">
+                    <img src="一个元素的旅行-images/image8.jpeg" alt="鱼鸭图" class="slide-image-small">
+                    <p class="image-caption">八大山人《鱼鸭图》</p>
+                    <p class="small-text">明宗室 · 清初</p>
+                    <div class="text-block" style="text-align: center; margin-top: 0.5rem;">
+                        <p class="small-text">明宗室家破人亡后削发为僧</p>
+                        <p class="small-text">画中只有沮丧孤独的一只鱼</p>
+                        <p class="small-text">其余皆是空白</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 10: 比较 -->
+    <section class="slide content-slide">
+        <span class="section-number">09</span>
+        <div class="slide-content">
+            <p class="section-tag reveal">比较</p>
+            <h2 class="reveal">什么变了<span class="keyword">？</span></h2>
+            <div class="two-column-text" style="margin-top: var(--content-gap);">
+                <div class="reveal text-block">
+                    <h3>功能演变</h3>
+                    <p class="small-text">意境 → 哲学 → 心理 → 装饰 → 物质 → 政治</p>
+                </div>
+                <div class="reveal text-block">
+                    <h3>情感光谱</h3>
+                    <p class="small-text">诗意 → 优雅 → 冷漠 → 压抑 → 荒寒</p>
+                </div>
+                <div class="reveal text-block">
+                    <h3>阅读门槛</h3>
+                    <p class="small-text">需要修养 → 不需要修养</p>
+                    <p class="small-text">需要哲学背景 → 需要时代背景</p>
+                </div>
+                <div class="reveal text-block">
+                    <h3>三个激进重构</h3>
+                    <p class="small-text">1. 尾形光琳：意境→设计，去精神化</p>
+                    <p class="small-text">2. 雷曼：虚空→物质，颠倒</p>
+                    <p class="small-text">3. Krasinski：成为反抗语言</p>
+                </div>
+            </div>
+            <div class="reveal" style="margin-top: var(--content-gap); text-align: center;">
+                <div class="accent-line" style="margin: 0 auto;"></div>
+                <h3 style="margin-top: var(--content-gap);">什么没变？</h3>
+                <p style="font-size: var(--body-size);">留白的底层机制：邀请观看者参与构建意义</p>
+                <p class="small-text">"不画比画更有意义，空缺比满盈更能激发想象"</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 11: 结论 -->
+    <section class="slide title-slide">
+        <div class="geo-circle geo-1"></div>
+        <div class="geo-circle geo-2"></div>
+        <div class="geo-line geo-3"></div>
+        <div class="geo-dot geo-4"></div>
+        <div class="slide-content" style="text-align: center; align-items: center;">
+            <p class="section-tag reveal">结论</p>
+            <h2 class="reveal" style="font-size: var(--title-size); max-width: 900px;">单一文化研究<br>看不见什么</h2>
+            <div class="accent-line reveal" style="margin: var(--content-gap) auto;"></div>
+            <div class="reveal" style="max-width: 700px;">
+                <p style="font-size: var(--body-size); margin-bottom: var(--content-gap);">
+                    留白的意义是多变的，在不断重构的，不属于任何单一文化。
+                </p>
+                <p style="font-size: var(--h2-size); font-style: italic;">
+                    <span class="keyword">空</span>只是<span class="keyword">空</span>，<br>
+                    但是<span class="keyword">空</span>又不只是<span class="keyword">空</span>
+                </p>
+            </div>
+            <p class="reveal small-text" style="margin-top: var(--content-gap);">
+                跨文化的想象力和误读的过程使得留白流动起来
+            </p>
+        </div>
+    </section>
+
+    <script>
+        class SlidePresentation {
+            constructor() {
+                this.slides = document.querySelectorAll('.slide');
+                this.currentSlide = 0;
+                this.progressBar = document.querySelector('.progress-bar');
+                this.navDotsContainer = document.querySelector('.nav-dots');
+                this.init();
+            }
+
+            init() {
+                this.setupIntersectionObserver();
+                this.setupKeyboardNav();
+                this.setupProgressBar();
+                this.setupNavDots();
+            }
+
+            setupIntersectionObserver() {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            const index = Array.from(this.slides).indexOf(entry.target);
+                            this.currentSlide = index;
+                            this.updateProgress();
+                            this.updateNavDots();
+                        }
+                    });
+                }, { threshold: 0.5 });
+                this.slides.forEach(slide => observer.observe(slide));
+            }
+
+            setupKeyboardNav() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                        e.preventDefault();
+                        this.nextSlide();
+                    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                        e.preventDefault();
+                        this.prevSlide();
+                    }
+                });
+            }
+
+            nextSlide() {
+                if (this.currentSlide < this.slides.length - 1) {
+                    this.slides[this.currentSlide + 1].scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+
+            prevSlide() {
+                if (this.currentSlide > 0) {
+                    this.slides[this.currentSlide - 1].scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+
+            setupProgressBar() {
+                window.addEventListener('scroll', () => {
+                    const scrollTop = window.scrollY;
+                    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    const progress = (scrollTop / docHeight) * 100;
+                    this.progressBar.style.width = progress + '%';
+                });
+            }
+
+            setupNavDots() {
+                this.navDotsContainer.innerHTML = '';
+                this.slides.forEach((_, index) => {
+                    const dot = document.createElement('div');
+                    dot.className = 'nav-dot' + (index === 0 ? ' active' : '');
+                    dot.addEventListener('click', () => {
+                        this.slides[index].scrollIntoView({ behavior: 'smooth' });
+                    });
+                    this.navDotsContainer.appendChild(dot);
+                });
+            }
+
+            updateProgress() {
+                const progress = ((this.currentSlide + 1) / this.slides.length) * 100;
+                this.progressBar.style.width = progress + '%';
+            }
+
+            updateNavDots() {
+                const dots = this.navDotsContainer.querySelectorAll('.nav-dot');
+                dots.forEach((dot, index) => {
+                    dot.classList.toggle('active', index === this.currentSlide);
+                });
+            }
+        }
+
+        new SlidePresentation();
+    </script>
+</body>
+</html>

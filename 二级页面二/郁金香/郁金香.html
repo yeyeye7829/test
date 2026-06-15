@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometric Design</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tilt+Warp&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background-color: #000; }
+        #viewport-wrapper { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        #page-canvas { width: 1920px; height: 1080px; position: relative; flex-shrink: 0; transform-origin: center center; transition: transform 0.1s ease-out; background: #FE9973; }
+
+        .page-title {
+            position: absolute;
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: 128px;
+            font-weight: 400;
+            color: #000;
+            top: 839px;
+            left: 137px;
+            z-index: 1000;
+            line-height: 1;
+        }
+        .page-title span { display: inline-block; margin-right: 0.25em; cursor: default; }
+        .slash-wrapper { position: absolute; left: 508px; top: 856.69px; z-index: 2000; pointer-events: auto !important; }
+        .slash-wrapper svg { pointer-events: auto !important; display: block; }
+
+        /* 物理组容器 - shape黑盒 */
+        .phys-group { position: absolute; cursor: pointer; }
+        .shape-svg { position: absolute; top: 0; left: 0; display: block; }
+
+        /* 线条画布 - 独立svg层 */
+        .stem-svg { position: absolute; pointer-events: none; overflow: visible; }
+
+        /* 悬浮放大效果 */
+        .hover-scale {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .hover-scale:hover,
+        .hover-scale.hovered {
+            transform: scale(1.05);
+        }
+
+        /* 音符文字 */
+        .note-text {
+            position: absolute;
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: 32px;
+            font-weight: 400;
+            z-index: 3000;
+        }
+        .note-text:hover {
+            transform: scale(1.3);
+        }
+
+        /* 返回按钮悬浮放大效果 */
+        .phys-group img[src*="返回"] {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            transform-origin: center center;
+        }
+        .phys-group img[src*="返回"]:hover {
+            transform: scale(1.1);
+        }
+
+        /* 电子音乐悬浮往左旋转30度并放大 */
+        .electronic-music .hover-scale {
+            transform-origin: center center;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .electronic-music .hover-scale:hover {
+            transform: scale(1.15) rotate(-15deg);
+        }
+
+        /* tap flower 闪烁动画 */
+        .tap-flower {
+            animation: tapFlowerBlink 1.5s ease-in-out infinite;
+        }
+        @keyframes tapFlowerBlink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.95); }
+        }
+        .tap-flower.stopped {
+            animation: none;
+            opacity: 1;
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body>
+    <audio id="bgm" src="../../音乐/二级页面1背景乐.mp3" loop volume="0.2"></audio>
+    <audio id="sfx-woodblock" src="../../音乐/木鱼.mp3" volume="0.1"></audio>
+    <audio id="sfx-mi" src="../../音乐/mi.mp3" volume="0.3"></audio>
+    <audio id="sfx-guitar" src="../../音乐/吉他.mp3" volume="0.3"></audio>
+    <div id="viewport-wrapper">
+        <div id="page-canvas">
+            <!-- 白顶 -->
+            <div class="phys-group" style="left:0px;top:0px;">
+                <img src="asset/白顶.svg" class="shape-svg" width="1920" height="40" alt="">
+            </div>
+
+            <!-- 底部 -->
+            <div class="phys-group" style="left:0px;top:1040px;">
+                <img src="asset/底部.svg" class="shape-svg" width="1920" height="40" alt="">
+            </div>
+
+            <!-- 土 -->
+            <div class="phys-group hover-scale flower-soil" style="left:860px;top:817.3px;">
+                <img src="asset/土.svg" class="shape-svg" width="201" height="187" alt="">
+            </div>
+
+            <!-- tap flower -->
+            <div class="phys-group tap-flower" style="left:140px;top:106px;">
+                <img src="asset/Tap flower parts to explore personal dimensions & musical genes.svg" class="shape-svg" width="604" height="165" alt="">
+            </div>
+
+            <!-- genre线 -->
+            <div class="phys-group genre-line" style="left:703px;top:756.5px;opacity:0;width:142px;height:163px;overflow:hidden;">
+                <img src="asset/genre线.svg" class="shape-svg" width="142" height="163" alt="" style="position:absolute;left:0;top:0;">
+                <div class="genre-mask" style="position:absolute;left:0;top:0;width:100%;height:100%;background:#FE9973;"></div>
+            </div>
+
+            <!-- energy线 -->
+            <div class="phys-group energy-line" style="left:626px;top:505px;opacity:0;width:142px;height:163px;overflow:hidden;">
+                <img src="asset/energy线.svg" class="shape-svg" width="142" height="163" alt="" style="position:absolute;left:0;top:0;">
+                <div class="energy-mask" style="position:absolute;right:0;top:0;width:100%;height:100%;background:#FE9973;"></div>
+            </div>
+
+            <!-- status线 -->
+            <div class="phys-group status-line" style="left:1121px;top:197.3px;opacity:0;width:71px;height:161px;overflow:hidden;">
+                <img src="asset/status线.svg" class="shape-svg" width="71" height="161" alt="" style="position:absolute;left:0;top:0;">
+                <div class="status-mask" style="position:absolute;right:0;top:0;width:100%;height:100%;background:#FE9973;"></div>
+            </div>
+
+            <!-- creative线 -->
+            <div class="phys-group creative-line" style="left:1030px;top:467.5px;opacity:0;width:251px;height:56px;overflow:hidden;">
+                <img src="asset/creative 线.svg" class="shape-svg" width="251" height="56" alt="" style="position:absolute;left:0;top:0;">
+                <div class="creative-mask" style="position:absolute;right:0;top:0;width:100%;height:100%;background:#FE9973;"></div>
+            </div>
+
+            <!-- mood线 -->
+            <div class="phys-group mood-line" style="left:1227px;top:757px;opacity:0;width:130px;height:43px;overflow:hidden;">
+                <img src="asset/mood 线.svg" class="shape-svg" width="130" height="43" alt="" style="position:absolute;left:0;top:0;">
+                <div class="mood-mask" style="position:absolute;right:0;top:0;width:100%;height:100%;background:#FE9973;"></div>
+            </div>
+
+            <!-- 返回 -->
+            <div class="phys-group" style="left:1569px;top:930px;">
+                <img src="asset/返回.svg" class="shape-svg" width="212" height="73" alt="">
+            </div>
+
+            <!-- mood energy -->
+            <div class="phys-group mood-energy" style="left:167.5px;top:406px;opacity:0;">
+                <img src="asset/mood energy.svg" class="shape-svg" width="411" height="205" alt="">
+            </div>
+
+            <!-- music genres -->
+            <div class="phys-group music-genres" style="left:300px;top:701.6px;opacity:0;">
+                <img src="asset/music genres.svg" class="shape-svg" width="399" height="205" alt="">
+            </div>
+
+            <!-- social status -->
+            <div class="phys-group social-status" style="left:1207.5px;top:69px;opacity:0;">
+                <img src="asset/social status.svg" class="shape-svg" width="490" height="218" alt="">
+            </div>
+
+            <!-- creative input -->
+            <div class="phys-group creative-input" style="left:1290px;top:373.5px;opacity:0;">
+                <img src="asset/creative input.svg" class="shape-svg" width="490" height="218" alt="">
+            </div>
+
+            <!-- mood genre -->
+            <div class="phys-group mood-genre" style="left:1371.8px;top:643.3px;opacity:0;">
+                <img src="asset/mood genre.svg" class="shape-svg" width="393" height="267" alt="">
+            </div>
+
+            <!-- 电子音乐 -->
+            <div class="phys-group electronic-music" style="left:329.5px;top:823px;opacity:0;pointer-events:none;">
+                <img src="asset/电子音乐.svg" class="shape-svg hover-scale" width="86" height="72" alt="">
+            </div>
+
+            <!-- 郁金香 茎根 -->
+            <div class="phys-group flower-stem" style="left:894.6px;top:416.5px;">
+                <svg class="shape-svg hover-scale" width="129" height="405" viewBox="0 0 129 405" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none;">
+                    <path d="M0 114.586H5.6702V281.114H0V114.586Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M8.50391 114.585H14.1741V281.113H8.50391V114.585Z" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <path d="M126.124 1.47222e-05V322.958C126.124 426.582 2.83668 429.543 2.83668 322.958V250.422" stroke="#036F62" stroke-width="5.6702" style="pointer-events:all;"/>
+                    <path d="M116.373 0.822163V328.406C116.373 406.58 17.7081 420.938 11.3408 328.407V245.445" stroke="#6CBDAA" stroke-width="5.6702" style="pointer-events:all;"/>
+                </svg>
+            </div>
+
+            <!-- 郁金香 花 -->
+            <div class="phys-group flower-head" style="left:816.2px;top:233.8px;">
+                <svg class="shape-svg hover-scale" width="292" height="416" viewBox="0 0 292 416" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none;">
+                    <ellipse cx="85.857" cy="312.652" rx="54.9322" ry="99.6897" fill="#E3D03B" style="pointer-events:all;"/>
+                    <path d="M57.896 301.289C73.4683 246.649 101.347 209.006 134.001 214.628L98.085 412.165C45.098 415.355 40.5476 362.161 57.896 301.289Z" fill="#E4EB33" style="pointer-events:all;"/>
+                    <path d="M133.866 215.375C164.461 223.294 176.738 266.587 173.192 322.51C170.037 372.278 149.644 410.77 98.085 412.165L133.866 215.375Z" fill="#F7FFB9" style="pointer-events:all;"/>
+                    <path d="M116.025 301.676C100.452 247.036 72.5734 209.393 39.9191 215.015L75.8356 412.552C128.823 415.742 133.373 362.548 116.025 301.676Z" fill="#FDF082" style="pointer-events:all;"/>
+                    <path d="M39.9191 215.015C9.32405 222.934 -2.95297 266.227 0.592334 322.15C3.74745 371.918 24.1412 410.411 75.6997 411.805L39.9191 215.015Z" fill="#F8CB27" style="pointer-events:all;"/>
+                    <path d="M40.6279 212.773L75.4333 411.409" stroke="#FE9973" stroke-width="5.6702" style="pointer-events:all;"/>
+                    <path d="M65.9121 215.81C110.225 260.257 112.303 282.605 122.395 317.89C128.935 357.447 136.212 397.726 83.4236 413.024" stroke="#FE9973" stroke-width="5.6702" style="pointer-events:all;"/>
+                    <path d="M134.237 213.215L118.584 301.913" stroke="#FE9973" stroke-width="5.6702" style="pointer-events:all;"/>
+                    <path d="M85.8564 236.91C91.8861 227.558 107.272 213.257 114.371 213.257" stroke="#FE9973" stroke-width="5.6702" style="pointer-events:all;"/>
+                    <ellipse cx="203.473" cy="102.232" rx="54.9313" ry="99.6913" fill="#E3D03B" style="pointer-events:all;"/>
+                    <path d="M175.514 90.8691C191.086 36.228 218.965 -1.41519 251.618 4.20667L215.702 201.746C162.716 204.937 158.166 151.742 175.514 90.8691Z" fill="#E4EB33" style="pointer-events:all;"/>
+                    <path d="M251.482 4.95372C282.077 12.8723 294.354 56.1662 290.809 112.09C287.653 161.859 267.26 200.352 215.702 201.746L251.482 4.95372Z" fill="#F7FFB9" style="pointer-events:all;"/>
+                    <path d="M233.64 91.2563C218.068 36.6152 190.189 -1.02798 157.536 4.59388L193.452 202.133C246.438 205.324 250.988 152.129 233.64 91.2563Z" fill="#FDF082" style="pointer-events:all;"/>
+                    <path d="M157.536 4.59388C126.941 12.5124 114.664 55.8065 118.21 111.73C121.365 161.499 141.758 199.992 193.316 201.387L157.536 4.59388Z" fill="#F8CB27" style="pointer-events:all;"/>
+                    <path d="M158.244 2.54053L193.049 201.179" stroke="#FE9973" stroke-width="5.6702" style="pointer-events:all;"/>
+                    <path d="M183.529 5.3877C227.841 49.8355 229.92 72.1843 240.011 107.47C246.551 147.027 253.828 187.307 201.041 202.605" stroke="#FE9973" stroke-width="5.6702" style="pointer-events:all;"/>
+                    <path d="M251.852 2.79346L236.199 91.4935" stroke="#FE9973" stroke-width="5.6702" style="pointer-events:all;"/>
+                    <path d="M203.473 26.4887C209.502 17.1366 224.888 2.83512 231.987 2.83496" stroke="#FE9973" stroke-width="5.6702" style="pointer-events:all;"/>
+                </svg>
+            </div>
+
+            <!-- 郁金香 叶子 -->
+            <div class="phys-group flower-leaf" style="left:784.5px;top:543.4px;">
+                <svg class="shape-svg hover-scale" width="410" height="238" viewBox="0 0 410 238" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none;">
+                    <path d="M251.747 177.258V153.559C251.747 99.8083 251.747 72.9332 262.208 52.4032C271.409 34.3445 286.092 19.6622 304.15 10.4608C324.68 0.000330578 351.555 0 405.306 0H409.391L251.747 177.258Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M409.392 6.77429V30.4734C409.392 84.2239 409.391 111.099 398.931 131.629C389.729 149.688 375.047 164.37 356.988 173.571C336.458 184.032 309.583 184.032 255.833 184.032H251.748L409.392 6.77429Z" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <path d="M131.863 209.695V202.56C131.863 186.378 131.863 178.287 135.013 172.107C137.783 166.67 142.203 162.25 147.639 159.48C153.82 156.331 161.911 156.331 178.093 156.331H179.323L131.863 209.695Z" fill="#036F62" style="pointer-events:all;"/>
+                    <path d="M180.571 160.528V167.663C180.571 183.845 180.571 191.936 177.422 198.116C174.652 203.553 170.232 207.973 164.795 210.743C158.615 213.892 150.524 213.893 134.342 213.893H133.112L180.571 160.528Z" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <path d="M105.991 233.121V217.187C105.991 181.048 105.991 162.979 98.958 149.176C92.7715 137.034 82.9 127.163 70.7583 120.976C56.9552 113.943 38.8859 113.943 2.74718 113.943H0.000465393L105.991 233.121Z" fill="#6CBDAA" style="pointer-events:all;"/>
+                    <path d="M0 118.498V134.432C0 170.57 0.000222262 188.64 7.03323 202.443C13.2197 214.585 23.0913 224.456 35.2329 230.643C49.0361 237.676 67.1053 237.676 103.244 237.676H105.991L0 118.498Z" fill="#036F62" style="pointer-events:all;"/>
+                </svg>
+            </div>
+
+            <!-- 郁金香label -->
+            <div class="phys-group flower-label hover-scale" style="left:1029px;top:817px;">
+                <img src="asset/郁金香label.svg" class="shape-svg" width="242" height="57" alt="">
+            </div>
+
+            <!-- 音符文字 -->
+            <span class="note-text hover-scale" style="left:1337px;top:519px;color:#FECC73;opacity:0;">Do</span>
+            <span class="note-text hover-scale" style="left:1398px;top:519px;color:#FECC73;opacity:0;">Re</span>
+            <span id="note-mi" class="note-text hover-scale" style="left:1456px;top:519px;color:#E94812;opacity:0;">Me</span>
+            <span class="note-text hover-scale" style="left:1523px;top:519px;color:#FECC73;opacity:0;">Fa</span>
+            <span class="note-text hover-scale" style="left:1580px;top:519px;color:#FECC73;opacity:0;">Sol</span>
+            <span class="note-text hover-scale" style="left:1646px;top:519px;color:#FECC73;opacity:0;">La</span>
+            <span class="note-text hover-scale" style="left:1701px;top:519px;color:#FECC73;opacity:0;">Si</span>
+        </div>
+    </div>
+
+    <script>
+        function resizeCanvas() {
+            const canvas = document.getElementById('page-canvas');
+            if (!canvas) return;
+            const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+            canvas.style.transform = `scale(${scale})`;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('DOMContentLoaded', resizeCanvas);
+        resizeCanvas();
+
+        // 停止tap flower闪烁动画
+        function stopTapFlowerBlink() {
+            const tapFlower = document.querySelector('.tap-flower');
+            if (tapFlower) {
+                tapFlower.classList.add('stopped');
+            }
+        }
+
+        // 点击叶子触发energy线和mood energy动画
+        document.querySelector('.flower-leaf').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.energy-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.energy-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'left center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.mood-energy', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                }
+            });
+        });
+
+        // 点击label触发mood线和mood genre动画
+        document.querySelector('.flower-label').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.mood-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.mood-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'right center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.mood-genre', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                }
+            });
+        });
+
+        // 点击花触发status线和social status动画
+        document.querySelector('.flower-head').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.status-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.status-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'right center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.social-status', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                }
+            });
+        });
+
+        // 点击土触发genre线和music genres、电子音乐动画
+        document.querySelector('.flower-soil').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.genre-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.genre-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'left center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.music-genres', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                    gsap.to('.electronic-music', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out',
+                        onStart: function() {
+                            document.querySelector('.electronic-music').style.pointerEvents = 'auto';
+                        }
+                    });
+                }
+            });
+        });
+
+        // 点击茎触发creative线和creative input、音符文字动画
+        document.querySelector('.flower-stem').addEventListener('click', function() {
+            document.getElementById('sfx-woodblock').currentTime = 0;
+            document.getElementById('sfx-woodblock').volume = 0.1;
+            document.getElementById('sfx-woodblock').play().catch(() => {});
+            stopTapFlowerBlink();
+            gsap.to('.creative-line', {
+                opacity: 1,
+                duration: 0.3
+            });
+            gsap.to('.creative-mask', {
+                transform: 'scaleX(0)',
+                transformOrigin: 'right center',
+                duration: 3,
+                ease: 'none',
+                onComplete: function() {
+                    gsap.to('.creative-input', {
+                        opacity: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                    gsap.to('.note-text', {
+                        opacity: 1,
+                        duration: 0.5,
+                        stagger: 0.1,
+                        ease: 'power2.out'
+                    });
+                }
+            });
+        });
+
+        // Me悬浮播放声音
+        document.querySelector('#note-mi').addEventListener('mouseenter', function() {
+            document.getElementById('sfx-mi').currentTime = 0;
+            document.getElementById('sfx-mi').play().catch(() => {});
+        });
+
+        // 电子音乐悬浮播放声音
+        document.querySelector('.electronic-music').addEventListener('mouseenter', function() {
+            document.getElementById('sfx-guitar').currentTime = 0;
+            document.getElementById('sfx-guitar').volume = 0.3;
+            document.getElementById('sfx-guitar').play().catch(() => {});
+        });
+
+        // 返回按钮点击关闭弹窗
+        document.querySelector('img[src*="返回"]').addEventListener('click', function() {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage('closePopup', '*');
+            } else {
+                window.close();
+            }
+        });
+
+        // 背景音乐
+        const bgm = document.getElementById('bgm');
+        bgm.volume = 0.2;
+        function playBgm() { bgm.play().catch(() => {}); }
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(playBgm, 100);
+        } else {
+            window.addEventListener('load', playBgm);
+        }
+    </script>
+</body>
+</html>
